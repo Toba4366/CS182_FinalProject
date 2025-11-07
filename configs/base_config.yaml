@@ -1,0 +1,40 @@
+# Moore Machine In-Context Learning Configuration
+# Optimized for 2-3 layer transformers to study ICL efficiently
+
+# Random seed for reproducibility
+seed: 42
+
+# Data configuration
+data:
+  train_machines: 500       # Reduced for faster experiments
+  val_machines: 100         # Reduced proportionally
+  examples_per_machine: 5   # Number of demonstration examples per machine
+  sequence_length: 8        # Reduced for faster training
+  test_sequence_length: 12  # Reduced proportionally
+  vocab_size: 64           # Reduced vocabulary size
+
+# Model configuration
+model:
+  max_seq_len: 128         # Reduced for faster experiments
+  d_model: 128             # Reduced model dimension for 2-3 layer focus
+  num_heads: 4             # Reduced for smaller models
+  num_layers: 2            # Optimized for 2-3 layer experiments
+  d_ff: 256               # Reduced feed-forward dimension
+  dropout: 0.1            # Dropout rate
+  freeze_layers: false     # Set to true to test if only final layer can solve ICL
+  freeze_embeddings: false # Set to true to also freeze embeddings
+
+# Training configuration
+training:
+  learning_rate: 1e-4      # Slightly higher for faster convergence
+  weight_decay: 0.01       # Weight decay coefficient
+  warmup_steps: 500        # Reduced warmup steps
+  max_steps: 5000         # Reduced for faster experiments
+  batch_size: 32          # Increased batch size for efficiency
+  eval_steps: 200         # More frequent evaluation
+  save_steps: 500         # Steps between checkpoint saves
+  gradient_clip_norm: 1.0  # Gradient clipping norm
+
+# Logging configuration
+use_wandb: false           # Whether to use Weights & Biases
+wandb_project: "moore-icl" # W&B project name
