@@ -84,3 +84,4 @@ Thumbs.db
 *.jpg
 *.pdf
 sample_fsm.png
+!papers/*.pdf
