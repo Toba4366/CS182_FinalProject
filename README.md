@@ -25,6 +25,7 @@ CS182_FinalProject/
 ├── configs/             # YAML configuration files
 ├── scripts/            # Training automation & testing
 ├── notebooks/          # Jupyter notebooks for exploration
+├── papers/             # Research papers and references
 └── requirements.txt    # Python dependencies
 ```
 

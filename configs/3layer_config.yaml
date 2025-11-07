@@ -2,7 +2,7 @@
 # Tests performance with slightly larger but still efficient model
 
 # Random seed for reproducibility
-seed: 42
+seed: 16
 
 # Data configuration
 data:
