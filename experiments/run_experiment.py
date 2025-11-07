@@ -12,8 +12,10 @@ from typing import Dict, Any, Optional
 import torch
 import yaml
 
-# Add src to path
-sys.path.append(str(Path(__file__).parent.parent))
+# Add project root to path  
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / 'src'))
 
 from src.fsm.moore_machine import MooreMachineGenerator
 from src.training.dataset import MooreMachineDataset

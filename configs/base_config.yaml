@@ -2,7 +2,7 @@
 # Optimized for 2-3 layer transformers to study ICL efficiently
 
 # Random seed for reproducibility
-seed: 42
+seed: 16
 
 # Data configuration
 data:

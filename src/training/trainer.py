@@ -170,7 +170,7 @@ class ICLTrainer:
         Compute loss for a batch.
         
         Args:
-            batch: Batch dictionary from data loader
+            batch: Dictionary containing input_ids, target_ids, attention_mask
             
         Returns:
             Loss tensor
@@ -182,17 +182,12 @@ class ICLTrainer:
         # Forward pass
         logits = self.model(input_ids, attention_mask)
         
-        # We need to predict the target sequence
-        # Shift logits and targets for next-token prediction
-        shift_logits = logits[..., :-1, :].contiguous()
-        shift_labels = target_ids[..., :].contiguous()
-        
         # Flatten for loss computation
-        shift_logits = shift_logits.view(-1, shift_logits.size(-1))
-        shift_labels = shift_labels.view(-1)
+        logits_flat = logits.view(-1, logits.size(-1))
+        labels_flat = target_ids.view(-1)
         
-        # Compute cross-entropy loss (ignore_index=-100)
-        loss = nn.functional.cross_entropy(shift_logits, shift_labels, ignore_index=-100)
+        # Compute cross-entropy loss (ignore_index=-100 for masked tokens)
+        loss = nn.functional.cross_entropy(logits_flat, labels_flat, ignore_index=-100)
         
         return loss
     

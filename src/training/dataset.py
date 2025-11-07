@@ -112,12 +112,13 @@ class MooreMachineDataset(Dataset):
             prompt = " <sep> ".join(demo_parts)
             
             # Generate test sequence
-            test_actions, _, test_outputs = create_input_output_examples(
+            test_example = create_input_output_examples(
                 fsm,
                 num_examples=1,
                 sequence_length=self.test_sequence_length,
                 seed=machine_seed + 1000  # Different seed for test
             )[0]
+            test_actions, test_outputs = test_example
             
             test_input = " ".join([f"A{a}" for a in test_actions])
             test_output = " ".join(test_outputs)
@@ -146,18 +147,37 @@ class MooreMachineDataset(Dataset):
         test_input_tokens = self._tokenize_sequence(sample['test_input'])
         test_output_tokens = self._tokenize_sequence(sample['test_output'])
         
-        # Create full input sequence: prompt + separator + test_input
-        full_input = (prompt_tokens + 
-                     [self.token_to_id['<sep>']] + 
-                     test_input_tokens +
-                     [self.token_to_id['<sep>']])
+        # Create full sequence: prompt + separator + test_input + separator + test_output + end
+        full_sequence = (prompt_tokens + 
+                        [self.token_to_id['<sep>']] + 
+                        test_input_tokens +
+                        [self.token_to_id['<sep>']] +
+                        test_output_tokens +
+                        [self.token_to_id['<end>']])
         
-        # Target sequence: test_output + end token
-        target = test_output_tokens + [self.token_to_id['<end>']]
+        # Create input (all but last token) and target (all but first token)
+        input_ids = full_sequence[:-1]
+        target_ids = full_sequence[1:]
+        
+        # Create labels with masking: only predict the test output part
+        labels = [-100] * len(target_ids)  # Start with all masked
+        # Find where test output starts (after second <sep>)
+        sep_count = 0
+        output_start_idx = 0
+        for i, token_id in enumerate(input_ids):
+            if token_id == self.token_to_id['<sep>']:
+                sep_count += 1
+                if sep_count == 2:
+                    output_start_idx = i + 1
+                    break
+        
+        # Unmask the test output tokens for loss computation
+        for i in range(output_start_idx, len(labels)):
+            labels[i] = target_ids[i]
         
         return {
-            'input_ids': torch.tensor(full_input, dtype=torch.long),
-            'target_ids': torch.tensor(target, dtype=torch.long),
+            'input_ids': torch.tensor(input_ids, dtype=torch.long),
+            'target_ids': torch.tensor(labels, dtype=torch.long),
             'machine_id': sample['machine_id']
         }
     

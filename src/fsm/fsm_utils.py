@@ -25,10 +25,26 @@ def generate_random_sequence(fsm: MooreMachine,
     if seed is not None:
         random.seed(seed)
     
-    # Generate random action sequence
-    action_sequence = [random.choice(list(fsm.actions)) for _ in range(length)]
+    action_sequence = []
+    current_state = fsm.initial_state
     
-    # Run through FSM
+    # Generate actions that are valid from current state
+    for _ in range(length):
+        # Find valid actions from current state
+        valid_actions = [action for action in fsm.actions 
+                        if (current_state, action) in fsm.transitions]
+        
+        if not valid_actions:
+            raise ValueError(f"No valid actions from state {current_state}")
+        
+        # Choose random valid action
+        action = random.choice(valid_actions)
+        action_sequence.append(action)
+        
+        # Update current state for next iteration
+        current_state = fsm.transitions[(current_state, action)]
+    
+    # Run through FSM to get full sequences
     state_sequence, output_sequence = fsm.run_sequence(action_sequence)
     
     return action_sequence, state_sequence, output_sequence

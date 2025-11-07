@@ -4,15 +4,18 @@ Quick start script to test the FSM generation and model setup.
 """
 
 import sys
+import os
 from pathlib import Path
 
-# Add src to path
-sys.path.append(str(Path(__file__).parent.parent / 'src'))
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / 'src'))
 
-from fsm.moore_machine import MooreMachineGenerator
-from training.dataset import MooreMachineDataset
-from training.models import SimpleTransformer, TransformerConfig
-from utils.visualization import plot_fsm_diagram
+from src.fsm.moore_machine import MooreMachineGenerator
+from src.training.dataset import MooreMachineDataset
+from src.training.models import SimpleTransformer, TransformerConfig
+from src.utils.visualization import plot_fsm_diagram
 
 
 def test_fsm_generation():

@@ -37,19 +37,29 @@ CS182_FinalProject/
 
 2. **Test the setup:**
    ```bash
-   python scripts/test_setup.py
+   python scripts/test_imports.py    # Test basic imports
+   python scripts/run_quick_training.py  # Run a quick training
    ```
 
-3. **Run experiments:**
+3. **View training curves:**
+   ```bash
+   jupyter notebook notebooks/training_analysis.ipynb
+   # Or run in VS Code with Jupyter extension
+   ```
+
+4. **Run experiments:**
    ```bash
    # 2-layer transformer (default)
-   python experiments/run_experiment.py --config configs/base_config.yaml
+   python scripts/run_quick_training.py
+   
+   # Or use the full experiment runner:
+   python -m experiments.run_experiment --config configs/base_config.yaml
    
    # 3-layer comparison
-   python experiments/run_experiment.py --config configs/3layer_config.yaml
+   python -m experiments.run_experiment --config configs/3layer_config.yaml
    
    # Frozen layer experiment (only final layer trains)
-   python experiments/run_experiment.py --config configs/frozen_layers_config.yaml
+   python -m experiments.run_experiment --config configs/frozen_layers_config.yaml
    ```
 
 ## 🧪 Experimental Configurations
@@ -105,13 +115,16 @@ CS182_FinalProject/
 ## 🛠️ Development Notes
 
 This scaffolding was generated to provide:
-- ✅ Complete project structure
+- ✅ Complete project structure with working imports
 - ✅ Constrained FSM generation matching project requirements
 - ✅ Small transformer models (2-3 layers) for efficient experimentation
 - ✅ Frozen parameter experiments for mechanistic analysis
 - ✅ AdamW-only optimization (reduced scope)
 - ✅ Comprehensive configuration system
-- ✅ Ready-to-run examples and tests
+- ✅ Ready-to-run examples and training visualization
+- ✅ Jupyter notebook for training analysis
+
+**Latest Update**: Fixed all import path issues, implemented proper loss computation for in-context learning, and validated training pipeline with working visualization.
 
 ## 👥 Team Collaboration
 
@@ -125,11 +138,20 @@ Feel free to modify, extend, or completely rewrite any part of this codebase as 
 
 ## 📝 Next Steps
 
-1. Review and validate the FSM implementation
-2. Run baseline experiments to confirm functionality
-3. Extend analysis tools based on experimental needs
-4. Add team-specific modifications and improvements
-5. Scale up experiments as needed
+1. ✅ **Setup Complete**: All imports working, training pipeline validated
+2. **Run baseline experiments** to confirm full functionality
+3. **Test frozen layer hypothesis** using `configs/frozen_layers_config.yaml`
+4. **Analyze training curves** in the provided Jupyter notebook
+5. **Extend analysis tools** based on experimental needs
+6. **Add team-specific modifications** and improvements
+7. **Scale up experiments** as computational resources allow
+
+## 🔧 **Troubleshooting**
+
+- **Import errors**: Run `python scripts/test_imports.py` to validate setup
+- **Training issues**: Try `python scripts/run_quick_training.py` for a minimal test
+- **Visualization**: Use `notebooks/training_analysis.ipynb` for plotting
+- **Configuration**: Check YAML configs in `configs/` directory
 
 ---
 
