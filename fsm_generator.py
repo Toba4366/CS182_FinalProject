@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any
 
 State = str
 Action = int
@@ -132,3 +132,63 @@ def generate_random_fsms_no_absorption(n: int, seed: Optional[int] = None) -> Li
     """
     rng = random.Random(seed)
     return [_build_one_fsm(avoid_absorbing=True, rng=rng) for _ in range(n)]
+
+
+from typing import Dict, List, Tuple, Any
+
+class FSM:
+    """
+    FSM represented as:
+    {
+        state1: { action1: next_state, action2: next_state, ... },
+        state2: { ... },
+        ...
+    }
+    """
+
+    def __init__(self, triples: List[Tuple[str, int, str]], start_state: str):
+        """
+        triples: list of (S, A, S') tuples
+        start_state: starting state label
+        """
+        self.start_state = start_state
+        self.states = set()
+        self.actions = set()
+
+        # Nested dictionary: state -> {action: next_state}
+        self.fsm: Dict[str, Dict[int, str]] = {}
+
+        for s, a, s_next in triples:
+            self.states.add(s)
+            self.states.add(s_next)
+            self.actions.add(a)
+
+            if s not in self.fsm:
+                self.fsm[s] = {}
+            self.fsm[s][a] = s_next
+
+    def step(self, state: str, action: int) -> str:
+        """Return next state given a state and action."""
+        return self.fsm[state][action]
+
+    def solve(self, actions: List[int]) -> str:
+        """
+        Execute a sequence of actions starting from start_state.
+        Returns final state.
+        """
+        current = self.start_state
+        for a in actions:
+            current = self.step(current, a)
+        return current
+
+    @classmethod
+    def from_random(cls, avoid_absorption: bool = False, seed=None):
+        """
+        Build a random FSM using the previously defined generator.
+        """
+        from_random_list = generate_random_fsms_no_absorption if avoid_absorption else generate_random_fsms
+        triples, start = from_random_list(1, seed=seed)[0]
+        return cls(triples, start)
+
+    def __repr__(self):
+        return f"FSM(start={self.start_state}, transitions={self.fsm})"
