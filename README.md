@@ -125,11 +125,11 @@ This scaffolding was generated to provide:
 - ✅ Ready-to-run examples and training visualization
 - ✅ Jupyter notebook for training analysis
 
-**Latest Update**: Fixed all import path issues, implemented proper loss computation for in-context learning, and validated training pipeline with working visualization.
+**Latest Update**: Updated FSM solver to support both tuple and class interfaces, aligned sequence/context lengths with project plan (64 sequences, 256 context), and implemented universal compatibility for multi-architecture development.
 
-## � Team-Generated Experimental Extensions
+## 🔬 Team-Generated Experimental Extensions
 
-**NEW: Beyond the Scaffold** - The team has developed additional FSM implementations that extend our research capabilities:
+**UPDATED: Beyond the Scaffold** - The team has developed additional FSM implementations and aligned with project plan specifications:
 
 ### `fsm_generator.py` - General DFA Generation
 **Purpose**: Generate deterministic finite automata with different constraints than the Moore machines in our scaffold.
