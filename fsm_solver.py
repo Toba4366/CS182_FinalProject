@@ -187,9 +187,9 @@ def truncate_sequence(execution_path: List[Tuple[State, Action, State]],
         Tuple of (truncated_path, truncation_info)
         
     Truncation Strategy:
-    - 25% start with start state (remove 0-3 state-action-state triples)
-    - 50% start with action (remove partial first triple, start from action)
-    - 25% start with non-start state (start from arbitrary state)
+    - 25% start with start state (ensure sequence begins from s0)
+    - 50% start with action (begin mid-triple from an action)
+    - 25% start with non-start state (begin from state that isn't s0)
     """
     if seed is not None:
         random.seed(seed)
@@ -216,12 +216,22 @@ def truncate_sequence(execution_path: List[Tuple[State, Action, State]],
     truncation_info = f"mode={truncate_mode}, amount={truncate_amount}"
     
     if truncate_mode == "start_state":
-        # 25% of the time: start with start state (remove n complete triples)
-        truncated = execution_path[truncate_amount:]
-        return truncated, f"start_state_removal({truncation_info})"
+        # 25% of the time: ensure we start with start state (s0)
+        # Find a position where we can start from s0
+        start_state = execution_path[0][0] if execution_path else None
+        
+        # Look for s0 after truncate_amount position
+        for i in range(truncate_amount, len(execution_path)):
+            if execution_path[i][0] == start_state:  # Found s0 as current state
+                truncated = execution_path[i:]
+                return truncated, f"start_state_s0({truncation_info})"
+        
+        # Fallback: if s0 not found, use original truncation
+        truncated = execution_path[truncate_amount:] if truncate_amount < len(execution_path) else []
+        return truncated, f"start_state_fallback({truncation_info})"
     
     elif truncate_mode == "action":
-        # 50% of the time: start with an action (may or may not branch from start)
+        # 50% of the time: start with an action (mid-triple)
         if truncate_amount >= len(execution_path):
             # If truncating more than available, return last action
             if execution_path:
@@ -229,21 +239,42 @@ def truncate_sequence(execution_path: List[Tuple[State, Action, State]],
                 return [(last_triple[0], last_triple[1], last_triple[2])], f"action_start_fallback({truncation_info})"
             return [], f"action_start_empty({truncation_info})"
         
-        # Start from the action of the truncate_amount-th triple
-        truncated = execution_path[truncate_amount:]
-        return truncated, f"action_start({truncation_info})"
+        # Start from the specified position, but format to begin with action
+        start_idx = truncate_amount
+        if start_idx < len(execution_path):
+            # Create sequence that starts with action from the chosen triple
+            chosen_triple = execution_path[start_idx]
+            current_state, action, next_state = chosen_triple
+            
+            # Build new sequence starting with this action
+            truncated = [(current_state, action, next_state)]
+            # Add remaining triples
+            truncated.extend(execution_path[start_idx + 1:])
+            
+            return truncated, f"action_start({truncation_info})"
+        
+        return [], f"action_start_empty({truncation_info})"
     
     elif truncate_mode == "non_start_state":
-        # 25% of the time: start with a state that isn't necessarily the start state
-        if truncate_amount >= len(execution_path):
-            return [], f"non_start_empty({truncation_info})"
+        # 25% of the time: start with a state that isn't the start state
+        start_state = execution_path[0][0] if execution_path else None
         
-        # Start from the end state of the truncate_amount-th triple
-        if truncate_amount < len(execution_path):
-            truncated = execution_path[truncate_amount:]
-            return truncated, f"non_start_state({truncation_info})"
+        # Look for first occurrence of non-start state after truncate_amount
+        for i in range(truncate_amount, len(execution_path)):
+            if execution_path[i][0] != start_state:  # Found non-s0 state
+                truncated = execution_path[i:]
+                return truncated, f"non_start_state({truncation_info})"
         
-        return execution_path, f"non_start_fallback({truncation_info})"
+        # If all remaining states are s0, look at next_state in transitions
+        for i in range(truncate_amount, len(execution_path)):
+            if execution_path[i][2] != start_state:  # next_state is not s0
+                # Start from this transition but focus on the non-s0 result
+                truncated = execution_path[i:]
+                return truncated, f"non_start_via_transition({truncation_info})"
+        
+        # Fallback: use regular truncation if no non-s0 state found
+        truncated = execution_path[truncate_amount:] if truncate_amount < len(execution_path) else []
+        return truncated, f"non_start_fallback({truncation_info})"
     
     else:
         raise ValueError(f"Unknown truncate_mode: {truncate_mode}")
