@@ -499,9 +499,9 @@ class CausalTransformer(nn.Module):
         if targets is not None:
             # Standard language modeling loss: predict next token at each position
             loss = F.cross_entropy(
-                logits.view(-1, logits.size(-1)),  # Flatten to (B*T, vocab_size)
-                targets.view(-1),                   # Flatten to (B*T,)
-                ignore_index=-100,                  # Ignore special padding tokens
+                logits.reshape(-1, logits.size(-1)),  # Flatten to (B*T, vocab_size) - use reshape for memory efficiency
+                targets.reshape(-1),                   # Flatten to (B*T,) - use reshape for memory efficiency
+                ignore_index=-100,                     # Ignore special padding tokens
             )
 
         return logits, loss
