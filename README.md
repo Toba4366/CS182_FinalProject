@@ -30,7 +30,8 @@ CS182_FinalProject/
 │   ├── generate_dataset.py  # Generate datasets in multiple formats
 │   └── convert_dataset.py   # Convert between different formats
 ├── tests/               # 🧪 Testing & validation
-│   └── test_data_integrity.py  # Verify data quality across formats
+│   ├── test_data_integrity.py  # Verify data quality across formats
+│   └── test_training_pipeline.py  # COMPLETE training pipeline validation
 ├── experiments/         # Experiment runners
 ├── configs/             # YAML configuration files
 ├── scripts/            # Training automation & testing
@@ -184,6 +185,7 @@ dataset = FSMDataset_HDF5('./data/full_dataset_hdf5', 'train')
 **Validate everything works:**
 ```bash
 python tests/test_data_integrity.py  # Tests all formats + performance benchmarks
+python tests/test_training_pipeline.py  # COMPLETE training pipeline validation
 ```
 
 **Generate custom datasets:**
@@ -191,6 +193,39 @@ python tests/test_data_integrity.py  # Tests all formats + performance benchmark
 python utils/generate_dataset.py --format pkl --output-dir ./my_dataset
 python utils/convert_dataset.py --input-dir ./data/full_dataset_pkl --output-dir ./converted
 ```
+
+## 🧪 Testing & Validation
+
+### Data Integrity Testing (`tests/test_data_integrity.py`)
+- Validates identical data across all 4 formats
+- Performance benchmarks for format selection
+- Complete Dataset class examples for PyTorch integration
+
+### Training Pipeline Validation (`tests/test_training_pipeline.py`)
+**🚀 CRITICAL: Run this before any serious training!**
+
+Comprehensive validation of the complete training pipeline:
+
+1. **Token Compatibility**: Ensures 36-token vocabulary aligns between dataset and transformer
+2. **Single Batch Training**: Validates forward/backward passes and loss computation
+3. **Multi-Format Integration**: Tests all dataset formats work with DataLoader
+4. **Frozen Layer Setup**: Validates ICL experiment infrastructure (freeze all except final head)
+5. **Learning Rate Schedule**: Tests warmup + cosine decay scheduler functionality
+
+```bash
+# Run complete validation suite
+python tests/test_training_pipeline.py
+
+# Expected output: 5/5 tests passed ✅
+# Token Compatibility ✅ 
+# Single Batch Training ✅ (loss decreases ~12%)
+# Dataset Format Integration ✅ (all 4 formats work)
+# Frozen Layer Setup ✅ (ICL experiment ready)
+# Learning Rate Schedule ✅ (warmup → cosine decay)
+```
+
+**If all tests pass**: Ready for training experiments!  
+**If tests fail**: Fix infrastructure issues before proceeding.
 
 ## 🔬 Team-Generated Experimental Extensions
 
@@ -264,9 +299,51 @@ state_only_performance = train_format("state_only")
 mixed_performance = train_format("state_action_state")
 ```
 
-**4. Absorption vs. Non-Absorption**
+**4. Learning Rate Schedule Experiments**
+```python
+# Compare optimization strategies for FSM learning
+from traditional import create_warmup_cosine_scheduler
+
+# Baseline: Warmup + Cosine Decay (current)
+baseline_scheduler = create_warmup_cosine_scheduler(optimizer, 1000, 10000)
+
+# Experiment 1: Different warmup lengths
+short_warmup = create_warmup_cosine_scheduler(optimizer, 500, 10000)   # 5% warmup
+long_warmup = create_warmup_cosine_scheduler(optimizer, 2000, 10000)   # 20% warmup
+
+# Experiment 2: Constant learning rate comparison  
+constant_lr_optimizer = AdamW(model.parameters(), lr=3e-4)  # No scheduling
+
+# Experiment 3: Step decay schedule
+step_scheduler = StepLR(optimizer, step_size=2000, gamma=0.5)
+
+# Research questions:
+# - Does warmup matter for small FSM transformers?
+# - Do different schedules affect which FSM patterns are learned?
+# - How does optimization strategy impact frozen layer ICL experiments?
+# - Which schedule works best for partial observability scenarios?
+```
+
+**5. Architecture Comparisons**
+```python
+# Baseline transformers vs. other architectures
+transformer_results = train_transformer_baseline()
+rnn_results = train_rnn_baseline()
+lstm_results = train_lstm_baseline()
+# Future: S4/Mamba for sequence modeling comparison
+```
+
+**6. Absorption vs. Non-Absorption**
 - Test whether absorbing states create "easier" ICL tasks
 - Study transformer attention patterns on different FSM structures
+
+**7. Mechanistic Interpretability**
+```python
+# Analyze what each model component learns
+attention_patterns = visualize_attention_heads(model, fsm_sequences)
+layer_representations = analyze_hidden_states_by_layer(model)
+frozen_vs_full_comparison = compare_learned_representations()
+```
 
 This team-generated extension provides a **complementary experimental framework** to our Moore machine scaffold, enabling deeper investigation into the mechanistic basis of in-context learning with structured sequences.
 
@@ -283,19 +360,24 @@ Feel free to modify, extend, or completely rewrite any part of this codebase as 
 ## 📝 Next Steps
 
 1. ✅ **Setup Complete**: All imports working, training pipeline validated
-2. **Run baseline experiments** to confirm full functionality
-3. **Test frozen layer hypothesis** using `configs/frozen_layers_config.yaml`
-4. **Analyze training curves** in the provided Jupyter notebook
-5. **Extend analysis tools** based on experimental needs
-6. **Add team-specific modifications** and improvements
-7. **Scale up experiments** as computational resources allow
+2. ✅ **Pipeline Tested**: Complete validation suite passes (5/5 tests)
+3. **Run baseline experiments** to confirm full functionality
+4. **Test frozen layer hypothesis** using `configs/frozen_layers_config.yaml`
+5. **Compare learning rate schedules** for FSM optimization
+6. **Analyze training curves** in the provided Jupyter notebook
+7. **Extend analysis tools** based on experimental needs
+8. **Add team-specific modifications** and improvements
+9. **Scale up experiments** as computational resources allow
 
 ## 🔧 **Troubleshooting**
 
 - **Import errors**: Run `python scripts/test_imports.py` to validate setup
-- **Training issues**: Try `python scripts/run_quick_training.py` for a minimal test
+- **Training issues**: Run `python tests/test_training_pipeline.py` for comprehensive validation
+- **Data format issues**: Run `python tests/test_data_integrity.py` to verify dataset consistency
 - **Visualization**: Use `notebooks/training_analysis.ipynb` for plotting
 - **Configuration**: Check YAML configs in `configs/` directory
+
+**Before any training**: Ensure `tests/test_training_pipeline.py` passes all 5 tests!
 
 ---
 
