@@ -10,6 +10,10 @@ networkx>=3.0
 pyyaml>=6.0
 tqdm>=4.65.0
 
+## Data Format Support
+h5py>=3.7.0  # For HDF5 format datasets
+pyarrow>=11.0.0  # For Parquet format datasets
+
 # Optional dependencies for enhanced functionality
 wandb>=0.15.0  # For experiment tracking
 jupyter>=1.0.0  # For notebook analysis

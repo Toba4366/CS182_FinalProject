@@ -1,6 +1,11 @@
 # Project specific
 main.tex
 
+# Test and temporary data directories (only track full_dataset_*)
+data/test_run/
+data/distribution_test/
+# Keep all full_dataset_* directories
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

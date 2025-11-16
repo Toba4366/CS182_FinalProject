@@ -17,16 +17,26 @@ We study how transformer models can learn to simulate Moore machines through in-
 
 ```
 CS182_FinalProject/
+├── data/                    # 📁 Generated datasets (multiple formats available!)
+│   ├── full_dataset_pkl/    # 🏃 Fastest - use for training  
+│   ├── full_dataset_json/   # 👁️ Most readable - use for debugging
+│   ├── full_dataset_parquet/# 🏢 Most compressed - use for production
+│   └── full_dataset_hdf5/   # 🔬 Scientific - use for massive scale
 ├── src/
 │   ├── fsm/              # Moore machine implementation
 │   ├── training/         # PyTorch models & training loops
-│   ├── utils/           # Visualization & analysis tools
-│   └── experiments/     # Experiment runners
+│   └── utils/           # Visualization & analysis tools
+├── utils/               # 🛠️ Dataset generation & conversion utilities
+│   ├── generate_dataset.py  # Generate datasets in multiple formats
+│   └── convert_dataset.py   # Convert between different formats
+├── tests/               # 🧪 Testing & validation
+│   └── test_data_integrity.py  # Verify data quality across formats
+├── experiments/         # Experiment runners
 ├── configs/             # YAML configuration files
 ├── scripts/            # Training automation & testing
 ├── notebooks/          # Jupyter notebooks for exploration
 ├── papers/             # Research papers and references
-└── requirements.txt    # Python dependencies
+└── requirements.txt    # Python dependencies (updated for all formats)
 ```
 
 ## 🚀 Quick Start
@@ -126,6 +136,61 @@ This scaffolding was generated to provide:
 - ✅ Jupyter notebook for training analysis
 
 **Latest Update**: Updated FSM solver to support both tuple and class interfaces, aligned sequence/context lengths with project plan (64 sequences, 256 context), and implemented universal compatibility for multi-architecture development.
+
+## 📊 Complete 10,000 Sample Dataset Generated
+
+**✨ NEW: Multi-Format Dataset System**
+
+We've generated a complete 10,000 sample dataset as specified in `plan.md`, available in 4 different formats to suit different workflows:
+
+### 📁 Available Dataset Formats
+
+| Format | Size | Best For | Location |
+|--------|------|----------|----------|
+| **PKL** | ~19MB | 🏃 Fastest Python training | `data/full_dataset_pkl/` |
+| **JSON** | ~144MB | 👁️ Human inspection & debugging | `data/full_dataset_json/` |
+| **Parquet** | ~6.8MB | 🏢 Production & data analysis | `data/full_dataset_parquet/` |
+| **HDF5** | ~16MB | 🔬 Scientific computing | `data/full_dataset_hdf5/` |
+
+### 📈 Dataset Statistics
+- **Training**: 6,000 samples  
+- **Validation**: 2,000 samples
+- **Test**: 2,000 samples
+- **Total**: 10,000 samples (matching plan.md specifications)
+- **Truncation Distribution**: ~25% start_state, ~50% action, ~25% non_start_state
+
+### 🚀 Quick Dataset Usage
+
+**Choose your preferred format:**
+
+```python
+# Option A: Fastest training (PKL)
+from tests.test_data_integrity import FSMDataset_PKL
+dataset = FSMDataset_PKL('./data/full_dataset_pkl', 'train')
+
+# Option B: Most readable (JSON) 
+from tests.test_data_integrity import FSMDataset_JSON
+dataset = FSMDataset_JSON('./data/full_dataset_json', 'train')
+
+# Option C: Production ready (Parquet)
+from tests.test_data_integrity import FSMDataset_Parquet  
+dataset = FSMDataset_Parquet('./data/full_dataset_parquet', 'train')
+
+# Option D: Scientific computing (HDF5)
+from tests.test_data_integrity import FSMDataset_HDF5
+dataset = FSMDataset_HDF5('./data/full_dataset_hdf5', 'train')
+```
+
+**Validate everything works:**
+```bash
+python tests/test_data_integrity.py  # Tests all formats + performance benchmarks
+```
+
+**Generate custom datasets:**
+```bash
+python utils/generate_dataset.py --format pkl --output-dir ./my_dataset
+python utils/convert_dataset.py --input-dir ./data/full_dataset_pkl --output-dir ./converted
+```
 
 ## 🔬 Team-Generated Experimental Extensions
 
