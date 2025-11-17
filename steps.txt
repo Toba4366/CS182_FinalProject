@@ -1,0 +1,9 @@
+1. Train backbone (s4, mamba) end to end
+    * Full training script
+2. Build a model for linear probing with pretrained backbone
+    => linear_probe_s4.py
+    => linear_probe_mamba.py
+3. Training loop for linear head 
+    => train_linear_probe.py
+4. Evaluate
+    * Full runner script
