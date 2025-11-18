@@ -1,1 +1,0 @@
-"""Utilities for transformer models (RoPE, attention, etc.)."""
