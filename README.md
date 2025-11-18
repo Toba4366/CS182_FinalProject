@@ -13,32 +13,61 @@ We study how transformer models can learn to simulate Moore machines through in-
 - **AdamW Optimizer**: Single optimizer focus to reduce experimental scope
 - **Frozen Layer Experiments**: Test whether only the final linear layer can solve ICL
 
-## 🏗️ Repository Structure
+## � Architecture Reorganization Status
+
+**🚧 REORGANIZATION IN PROGRESS** - Following the planned architecture from `plan.md`
+
+**Completed:**
+- ✅ Created `models/state_space/` and `models/transformers/` directory structure per plan.md
+- ✅ Extracted common training utilities to `models/state_space/utils/training.py` 
+- ✅ Created cleaned model implementations without embedded utilities:
+  - `models/state_space/vanilla_rnn.py` (176 lines vs 318 original)
+  - `models/state_space/lstm.py` (154 lines vs 279 original)
+- ✅ Extracted tests to proper test files (`tests/test_vanilla_rnn.py`)
+- ✅ Multi-architecture testing works with both old and new structure
+
+**Kept Original Files for Stability:**
+- 🔒 `traditional.py`, `vanilla_rnn.py`, `lstm.py` remain in root directory
+- 🔒 All existing tests and configs continue to work unchanged  
+- 🔒 No breaking changes to current workflow
+
+**Next Steps (Future):**
+- Move `traditional.py` to `models/transformers/traditional.py` 
+- Extract transformer utilities (RoPE, attention, etc.)
+- Update all import statements project-wide
+- Remove original files after full migration validation
+
+## �📁 Repository Structure
 
 ```
 CS182_FinalProject/
-├── data/                    # 📁 Generated datasets (multiple formats available!)
-│   ├── full_dataset_pkl/    # 🏃 Fastest - use for training  
-│   ├── full_dataset_json/   # 👁️ Most readable - use for debugging
-│   ├── full_dataset_parquet/# 🏢 Most compressed - use for production
-│   └── full_dataset_hdf5/   # 🔬 Scientific - use for massive scale
-├── src/
-│   ├── fsm/              # Moore machine implementation
-│   ├── training/         # PyTorch models & training loops
-│   └── utils/           # Visualization & analysis tools
-├── utils/               # 🛠️ Dataset generation & conversion utilities
+├── traditional.py       # 🤖 Transformer implementation
+├── vanilla_rnn.py      # 🧠 Vanilla RNN implementation  
+├── lstm.py             # � LSTM implementation
+├── fsm_generator.py    # FSM generation utilities
+├── fsm_solver.py       # FSM constraint solver
+├── data/              # 📊 Multi-format datasets (PKL, JSON, Parquet, HDF5)
+│   ├── full_dataset_pkl/     # Pickle format (fast Python loading)
+│   ├── full_dataset_json/    # JSON format (human-readable)
+│   ├── full_dataset_parquet/ # Parquet format (industry standard)
+│   └── full_dataset_hdf5/    # HDF5 format (scientific computing)
+├── src/               # 📦 Core modules
+│   ├── fsm/          # Moore machine implementation
+│   ├── training/     # Training framework
+│   └── utils/        # Utilities
+├── utils/             # Dataset generation & conversion
 │   ├── generate_dataset.py  # Generate datasets in multiple formats
 │   └── convert_dataset.py   # Convert between different formats
 ├── tests/               # 🧪 Testing & validation
 │   ├── test_data_integrity.py  # Verify data quality across formats
-│   └── test_training_pipeline.py  # COMPLETE training pipeline validation
+│   ├── test_training_pipeline.py  # COMPLETE training pipeline validation
+│   └── test_multi_architecture.py  # Multi-architecture compatibility testing
 ├── experiments/         # Experiment runners
 ├── configs/             # YAML configuration files
 ├── scripts/            # Training automation & testing
 ├── notebooks/          # Jupyter notebooks for exploration
 ├── papers/             # Research papers and references
 └── requirements.txt    # Python dependencies (updated for all formats)
-```
 
 ## 🚀 Quick Start
 
@@ -98,11 +127,29 @@ CS182_FinalProject/
 - 4-8 state transitions including self-loops
 - Automatic validation of constraint compliance
 
-### Transformer Architecture
+### Multi-Architecture Implementation
+**Transformer (Baseline)**
 - Decoder-only architecture with causal masking
 - Multi-head attention with positional encoding
+- Parameters: ~729k (d=128, 2L)
+- File: `traditional.py`
+
+**Vanilla RNN** 
+- Basic Elman network with tanh activation
+- Simple recurrent connections, minimal parameters
+- Parameters: ~75k (d=128, 2L)
+- File: `vanilla_rnn.py`
+
+**LSTM**
+- Long Short-Term Memory with gating mechanisms
+- Enhanced memory and gradient flow
+- Parameters: ~273k (d=128, 2L)
+- File: `lstm.py`
+
+**Training Features**
 - Configurable freezing for ablation studies
 - Parameter counting and frozen parameter tracking
+- Unified interface across all architectures
 
 ### Training Framework
 - AdamW optimizer with warmup and cosine annealing
@@ -200,6 +247,27 @@ python utils/convert_dataset.py --input-dir ./data/full_dataset_pkl --output-dir
 - Validates identical data across all 4 formats
 - Performance benchmarks for format selection
 - Complete Dataset class examples for PyTorch integration
+
+### Multi-Architecture Testing (`tests/test_multi_architecture.py`) 
+**🔍 NEW: Comprehensive cross-architecture validation**
+
+Tests all model architectures (Transformer, Vanilla RNN, LSTM) for:
+
+1. **Token Compatibility**: 36-token vocabulary handling across all architectures
+2. **Training Functionality**: Forward/backward passes, loss computation, optimizer steps
+3. **Parameter Analysis**: Count comparison and memory efficiency analysis
+4. **Dataset Integration**: All formats (PKL/JSON/Parquet/HDF5) work with all models  
+5. **Gradient Health**: Gradient flow validation and numerical stability checks
+
+```bash
+# Run multi-architecture test suite
+python tests/test_multi_architecture.py
+```
+
+**Results**: ✅ 5/5 tests passing across 3 architectures
+- Transformer: 729k params, strong attention baseline
+- Vanilla RNN: 75k params (0.1x), simple recurrent baseline  
+- LSTM: 273k params (0.4x), enhanced memory & gating
 
 ### Training Pipeline Validation (`tests/test_training_pipeline.py`)
 **🚀 CRITICAL: Run this before any serious training!**

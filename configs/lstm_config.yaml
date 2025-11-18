@@ -1,0 +1,45 @@
+# LSTM Configuration for FSM Learning
+model:
+  type: "lstm"
+  vocab_size: 36
+  d_model: 128
+  n_layers: 2
+  dropout: 0.1
+  bidirectional: false
+  tie_weights: false
+
+# Training configuration  
+training:
+  batch_size: 32
+  learning_rate: 3e-4
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  
+  # Schedule
+  warmup_steps: 100
+  total_steps: 1000
+  
+  # Evaluation
+  eval_steps: 100
+  save_steps: 250
+  
+  # Data
+  data_format: "pkl"  # pkl, json, parquet, hdf5
+  sequence_length: 64
+
+# Model specific settings
+lstm:
+  # LSTM hidden state handling
+  reset_hidden_each_batch: true  # Whether to reset hidden state between batches
+  detach_hidden: true           # Whether to detach hidden state from computation graph
+
+# Paths
+data:
+  train_path: "data/full_dataset_pkl/train_dataset.pkl"
+  val_path: "data/full_dataset_pkl/val_dataset.pkl"
+  test_path: "data/full_dataset_pkl/test_dataset.pkl"
+
+output:
+  experiment_name: "lstm_baseline" 
+  save_dir: "results/lstm_baseline"
+  log_interval: 50
