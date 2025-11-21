@@ -12,14 +12,55 @@ from extern_s4.models.s4.s4 import S4Block
 class S4Wrapper(nn.Module):
     def __init__(self, d_model, dropout=0.0, l_max=256):
         super().__init__()
+        # Force d_model == l_max for this S4 implementation
+        self.l_max = min(d_model, l_max)
+        self.d_model = self.l_max  # Must be equal
+        
         self.block = S4Block(
-            d_model=d_model,
+            d_model=self.d_model,
             dropout=dropout,
-            l_max=l_max,    # required
+            l_max=self.l_max,
         )
+        
+        # Projection layers if we need to change dimensions
+        self.input_proj = nn.Linear(d_model, self.d_model) if d_model != self.d_model else nn.Identity()
+        self.output_proj = nn.Linear(self.d_model, d_model) if d_model != self.d_model else nn.Identity()
 
     def forward(self, x):
-        y, _ = self.block(x)
+        B, L, D = x.shape
+        
+        # Project input to S4 dimension
+        x = self.input_proj(x)
+        
+        # Handle sequence length
+        if L > self.l_max:
+            # Process in chunks
+            outputs = []
+            for i in range(0, L, self.l_max):
+                chunk = x[:, i:i+self.l_max, :]
+                if chunk.size(1) < self.l_max:
+                    # Pad last chunk
+                    padding = torch.zeros(B, self.l_max - chunk.size(1), chunk.size(-1), 
+                                        device=x.device, dtype=x.dtype)
+                    chunk = torch.cat([chunk, padding], dim=1)
+                
+                chunk_out, _ = self.block(chunk)
+                # Remove padding
+                if i + self.l_max > L:
+                    chunk_out = chunk_out[:, :L-i, :]
+                outputs.append(chunk_out)
+            y = torch.cat(outputs, dim=1)
+        elif L < self.l_max:
+            # Pad sequence
+            padding = torch.zeros(B, self.l_max - L, x.size(-1), device=x.device, dtype=x.dtype)
+            x_padded = torch.cat([x, padding], dim=1)
+            y, _ = self.block(x_padded)
+            y = y[:, :L, :]  # Remove padding
+        else:
+            y, _ = self.block(x)
+        
+        # Project back to original dimension
+        y = self.output_proj(y)
         return y
 
 
@@ -76,6 +117,12 @@ class S4LM(nn.Module):
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.max_seq_len = max_seq_len
+        
+        # S4 internal dimension - use a reasonable size that works
+        if s4_kwargs and 'l_max' in s4_kwargs:
+            s4_dim = min(64, s4_kwargs['l_max'])  # Cap at 64 for stability
+        else:
+            s4_dim = min(64, d_model)  # Cap at 64 for stability
 
         # token + positional embeddings
         self.token_embed = nn.Embedding(vocab_size, d_model)
@@ -85,7 +132,7 @@ class S4LM(nn.Module):
             d_model=d_model,
             n_layers=n_layers,
             dropout=dropout,
-            s4_kwargs={"l_max": max_seq_len},
+            s4_kwargs={"l_max": s4_dim},
         )
 
         self.head = nn.Linear(d_model, vocab_size, bias=False)
