@@ -46,11 +46,12 @@ def collator():
 @pytest.fixture
 def training_config():
     """Create training configuration."""
-    return TrainingConfig(
+    return VanillaRNNTrainingConfig(
         batch_size=4,
         learning_rate=1e-3,
         num_epochs=1,  # Short for testing
         device="cpu",
+        verbose=False,  # Disable verbose for testing
     )
 
 
