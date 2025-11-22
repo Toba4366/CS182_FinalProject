@@ -19,8 +19,9 @@ FSM = Dict[int, Dict[int, int]]
 class FSMGeneratorConfig:
     """Configuration object for the FSM generator."""
     num_states: int = 5
-    min_actions_per_state: int = 3
-    max_actions_per_state: int = 8
+    min_actions: int = 3
+    max_actions: int = 8
+    action_count = num_states + 2
     seed: Optional[int] = None
 
 
@@ -37,58 +38,66 @@ class FSMGenerator:
         assert (
             config.num_states >= 3
         ), "An FSM requires at least three states to be interesting."
+        
         assert (
-            config.min_actions_per_state >= 1
+            config.min_actions_per_state <= config.action_count
         ), "Each state must have at least one outgoing action."
         assert (
-            config.max_actions_per_state >= config.min_actions_per_state
+            config.max_actions_per_state >= config.action_count
         ), "max_actions_per_state must be >= min_actions_per_state."
 
         self.config = config
         self.rng = random.Random(config.seed)
-        vocab_size = max(8, config.max_actions_per_state)
+        vocab_size = max(8, config.action_count)
         start_id = config.num_states
         self.action_ids = list(range(start_id, start_id + vocab_size))
 
     def generate(self) -> FSM:
         """
-        Generate a random connected FSM.
+        Generate a random connected DFA.
 
         Returns:
-            A dictionary mapping state_id -> {action: next_state}
+            A dictionary mapping state_id -> {action: next_state},
+            where every state has exactly one outgoing transition for
+            each action in self.action_ids (i.e., a total, deterministic
+            transition function over a shared action alphabet).
         """
         num_states = self.config.num_states
+
+        # Initialize empty transition dict for each state
         fsm: FSM = {state: {} for state in range(num_states)}
 
-        # Step 1: ensure connectivity with a random spanning tree
+        # ------------------------------------------------------------------
+        # Step 1: ensure (undirected) connectivity with a random spanning tree
+        # ------------------------------------------------------------------
         remaining_states = list(range(1, num_states))
         connected_states = [0]
 
         while remaining_states:
             src = self.rng.choice(connected_states)
             dst = remaining_states.pop(self.rng.randrange(len(remaining_states)))
-            action_id = self._sample_action_id(fsm[src])
 
+            # Use an unused action for src so we don't overwrite an existing edge
+            action_id = self._sample_action_id(fsm[src])
             fsm[src][action_id] = dst
 
-            # Add reverse edge to strengthen connectivity (optional)
-            reverse_action = self._sample_action_id(fsm[dst])
-            fsm[dst][reverse_action] = src
+            # Optional reverse edge to strengthen connectivity. NO NEED FOR THIS.
+            # reverse_action = self._sample_action_id(fsm[dst])
+            # fsm[dst][reverse_action] = src
 
             connected_states.append(dst)
 
-        # Step 2: add random transitions until action budgets are met
+        # ------------------------------------------------------------------
+        # Step 2: fill in missing (state, action) transitions to make a DFA
+        # ------------------------------------------------------------------
         for state in range(num_states):
-            target_num_actions = self.rng.randint(
-                self.config.min_actions_per_state, self.config.max_actions_per_state
-            )
-
-            while len(fsm[state]) < target_num_actions:
-                next_state = self.rng.randrange(num_states)
-                action_id = self._sample_action_id(fsm[state])
-                fsm[state][action_id] = next_state
+            for action_id in self.action_ids:
+                if action_id not in fsm[state]:
+                    next_state = self.rng.randrange(num_states)
+                    fsm[state][action_id] = next_state
 
         return fsm
+
 
     def _sample_action_id(self, state_actions: Dict[int, int]) -> int:
         """Sample an unused action ID for the given state's dictionary."""
@@ -98,5 +107,14 @@ class FSMGenerator:
                 "Action vocabulary exhausted. Increase max_actions_per_state or vocab_size."
             )
         return self.rng.choice(available)
+
+    def generate_with_absorbing_state(self) -> FSM:
+        fsm = self.generate()  # generate a DFA
+        num_states = self.config.num_states
+        absorbing_state = self.rng.randrange(num_states)  # pick one at random
+        # Overwrite all outgoing transitions from this state to point to itself
+        for action_id in self.action_ids:
+            fsm[absorbing_state][action_id] = absorbing_state
+        return fsm
 
 
