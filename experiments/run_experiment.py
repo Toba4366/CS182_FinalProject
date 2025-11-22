@@ -77,7 +77,9 @@ def create_model(config: Dict[str, Any], vocab_size: int) -> SimpleTransformer:
         num_heads=config['model']['num_heads'],
         num_layers=config['model']['num_layers'],
         d_ff=config['model']['d_ff'],
-        dropout=config['model']['dropout']
+        dropout=config['model']['dropout'],
+        freeze_layers=config['model'].get('freeze_layers', False),
+        freeze_embeddings=config['model'].get('freeze_embeddings', False)
     )
     
     return SimpleTransformer(model_config)
@@ -127,14 +129,14 @@ def run_experiment(config_path: str, output_dir: str):
         model=model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
-        learning_rate=config['training']['learning_rate'],
-        weight_decay=config['training']['weight_decay'],
-        warmup_steps=config['training']['warmup_steps'],
-        max_steps=config['training']['max_steps'],
-        batch_size=config['training']['batch_size'],
-        eval_steps=config['training']['eval_steps'],
-        save_steps=config['training']['save_steps'],
-        gradient_clip_norm=config['training']['gradient_clip_norm'],
+        learning_rate=float(config['training']['learning_rate']),
+        weight_decay=float(config['training']['weight_decay']),
+        warmup_steps=int(config['training']['warmup_steps']),
+        max_steps=int(config['training']['max_steps']),
+        batch_size=int(config['training']['batch_size']),
+        eval_steps=int(config['training']['eval_steps']),
+        save_steps=int(config['training']['save_steps']),
+        gradient_clip_norm=float(config['training']['gradient_clip_norm']),
         save_dir=str(output_path / 'checkpoints'),
         use_wandb=config.get('use_wandb', False),
         wandb_project=config.get('wandb_project', 'moore-icl'),

@@ -372,11 +372,15 @@ class CausalTransformer(nn.Module):
         use_rope: bool = False,             # Use Rotary Position Embeddings
         tie_weights: bool = True,           # Tie input/output embedding weights
         out_dim: Optional[int] = None,      # Output dimension (None = vocab_size)
+        freeze_layers: bool = False,        # 🧊 NEW: Freeze transformer layers for ICL experiments
+        freeze_embeddings: bool = False,    # 🧊 NEW: Freeze embeddings too (test only final layer)
     ):
         super().__init__()
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.max_seq_len = max_seq_len
+        self.freeze_layers = freeze_layers
+        self.freeze_embeddings = freeze_embeddings
 
         # Core embedding layers
         self.token_embed = nn.Embedding(vocab_size, d_model)  # Convert tokens to vectors
@@ -413,6 +417,10 @@ class CausalTransformer(nn.Module):
 
         # Initialize all parameters with appropriate distributions
         self.apply(self._init_weights)
+        
+        # 🧊 Apply freezing after initialization if requested
+        if freeze_layers or freeze_embeddings:
+            self._freeze_parameters()
 
     def _init_weights(self, module: nn.Module):
         """
@@ -432,6 +440,108 @@ class CausalTransformer(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             nn.init.ones_(module.weight)    # Start with identity scaling
             nn.init.zeros_(module.bias)     # No initial bias
+
+    def _freeze_parameters(self):
+        """
+        🧊 Freeze model parameters for In-Context Learning experiments.
+        
+        RESEARCH PURPOSE: Test whether only the final linear layer can solve ICL.
+        
+        This implements the core hypothesis from recent ICL research:
+        • Can transformers learn FSM rules with only the output head trainable?
+        • Do the transformer layers learn useful representations without gradient updates?
+        • How much of ICL happens in the final linear layer vs. the attention layers?
+        
+        Freezing Strategy:
+        • freeze_embeddings=True: Freeze token + positional embeddings
+        • freeze_layers=True: Freeze all transformer blocks + final LayerNorm
+        • head: Always remains trainable (this is what we're testing!)
+        
+        CRITICAL: Handle weight tying carefully - if embeddings are frozen but head
+        should be trainable, we need to break weight tying to avoid conflicts.
+        """
+        # Store original weight tying state
+        weights_were_tied = hasattr(self.head, 'weight') and hasattr(self.token_embed, 'weight') and \
+                           self.head.weight is self.token_embed.weight
+        
+        if self.freeze_embeddings:
+            # If we need to freeze embeddings but keep head trainable, break weight tying first
+            if weights_were_tied:
+                # Create separate weights for the head
+                self.head.weight = nn.Parameter(self.token_embed.weight.data.clone())
+                print("🔗 Broke weight tying between embeddings and head for independent freezing")
+            
+            # Now freeze embedding layers
+            for param in self.token_embed.parameters():
+                param.requires_grad = False
+            for param in self.pos_embed.parameters():
+                param.requires_grad = False
+            print("🧊 Frozen embeddings (token + positional)")
+        
+        if self.freeze_layers:
+            # Freeze all transformer blocks
+            for param in self.blocks.parameters():
+                param.requires_grad = False
+            # Freeze final layer norm
+            for param in self.ln_f.parameters():
+                param.requires_grad = False
+            print("🧊 Frozen transformer layers and final LayerNorm")
+        
+        # Ensure head always remains trainable (critical for the experiment!)
+        for param in self.head.parameters():
+            param.requires_grad = True
+        
+        # Verify we have at least some trainable parameters
+        trainable_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        if trainable_count == 0:
+            raise RuntimeError("All parameters were frozen! This would make training impossible.")
+        
+        print(f"🎯 Head remains trainable: {sum(p.numel() for p in self.head.parameters())} parameters")
+        print(f"🔢 Total trainable: {trainable_count:,} parameters")
+
+    def get_frozen_info(self) -> Dict[str, Any]:
+        """
+        📊 Get detailed information about parameter freezing status.
+        
+        Returns comprehensive statistics for experiment logging:
+        • Total parameters in model
+        • How many are trainable vs frozen
+        • Percentage frozen (higher = more constrained experiment)
+        • Breakdown by component (embeddings, blocks, head)
+        
+        Critical for validating experiments - ensures freezing worked correctly!
+        """
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        frozen_params = total_params - trainable_params
+
+        # Component-wise breakdown
+        embed_params = sum(p.numel() for p in self.token_embed.parameters())
+        pos_params = sum(p.numel() for p in self.pos_embed.parameters())
+        blocks_params = sum(p.numel() for p in self.blocks.parameters())
+        ln_f_params = sum(p.numel() for p in self.ln_f.parameters())
+        head_params = sum(p.numel() for p in self.head.parameters())
+
+        return {
+            "total_parameters": total_params,
+            "trainable_parameters": trainable_params,
+            "frozen_parameters": frozen_params,
+            "frozen_percentage": (frozen_params / total_params) * 100 if total_params > 0 else 0,
+            "component_breakdown": {
+                "token_embeddings": embed_params,
+                "positional_embeddings": pos_params,
+                "transformer_blocks": blocks_params,
+                "final_layernorm": ln_f_params,
+                "output_head": head_params,
+            },
+            "trainable_breakdown": {
+                "token_embeddings": sum(p.numel() for p in self.token_embed.parameters() if p.requires_grad),
+                "positional_embeddings": sum(p.numel() for p in self.pos_embed.parameters() if p.requires_grad),
+                "transformer_blocks": sum(p.numel() for p in self.blocks.parameters() if p.requires_grad),
+                "final_layernorm": sum(p.numel() for p in self.ln_f.parameters() if p.requires_grad),
+                "output_head": sum(p.numel() for p in self.head.parameters() if p.requires_grad),
+            }
+        }
 
     def forward(
         self,
