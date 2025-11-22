@@ -21,12 +21,13 @@ class FSMGeneratorConfig:
     num_states: int = 5
     min_actions: int = 3
     max_actions: int = 8
+    action_count: int = 7
     seed: Optional[int] = None
     
     @property
-    def action_count(self) -> int:
-        """Number of actions available in the alphabet."""
-        return self.num_states + 2
+    #def action_count(self) -> int:
+    #    """Number of actions available in the alphabet."""
+    #    return self.num_states + 2
 
 
 class FSMGenerator:
@@ -44,8 +45,8 @@ class FSMGenerator:
         ), "An FSM requires at least three states to be interesting."
         
         assert (
-            config.min_actions >= 1
-        ), "Each state must have at least one outgoing action."
+            config.min_actions <= config.action_count and config.max_actions >= config.action_count
+        ), "Action count in range."
         assert (
             config.max_actions >= config.min_actions
         ), "max_actions must be >= min_actions."
