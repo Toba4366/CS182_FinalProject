@@ -6,7 +6,7 @@ A comprehensive study of **In-Context Learning (ICL)** capabilities across diffe
 
 
 
-**Team Members:** Trenton O'Bannon, Yuri Schimke, Keshab Agarwal, Evan Chen**Team Members:** Trenton O'Bannon, Yuri Schimke, Keshab Agarwal, Evan Chen
+**Team Members:** Trenton O'Bannon, Yuri Lee, Keshab Agarwal, Evan Davis
 
 
 
