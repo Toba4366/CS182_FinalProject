@@ -1,11 +1,5 @@
 """
-Training utilities for the Moore machine ICL transformer.
-
-NOTE: To make this trainer model-agnostic in the future:
-1. Change the import from specific model to `import torch.nn as nn`
-2. Replace `MooreTransformer` type hints with `nn.Module`
-3. Ensure all models follow the same forward signature:
-   forward(input_ids, targets=None, unknown_mask=None) -> (logits, loss)
+Training utilities for the Moore machine ICL Vanilla RNN.
 """
 
 from __future__ import annotations
@@ -19,7 +13,7 @@ try:
 except ImportError as exc:  # pragma: no cover
     raise ImportError("ICL trainer requires PyTorch. Install via `pip install torch`.") from exc
 
-from src.models.moore_transformer import MooreTransformer
+from src.models.moore_vanilla_rnn import MooreVanillaRNN
 
 
 class ICLDataCollator:
@@ -63,14 +57,15 @@ class TrainingConfig:
     weight_decay: float = 0.0
     num_epochs: int = 3
     device: Optional[str] = None
+    verbose: bool = True  # Print detailed training info
 
 
-class MooreICLTrainer:
-    """Thin training loop wrapper for the transformer."""
+class MooreVanillaRNNTrainer:
+    """Thin training loop wrapper for the Vanilla RNN."""
 
     def __init__(
         self,
-        model: MooreTransformer,
+        model: MooreVanillaRNN,
         train_dataset: Dataset,
         val_dataset: Dataset,
         collator: ICLDataCollator,
@@ -129,6 +124,17 @@ class MooreICLTrainer:
             if loss is None:
                 continue
 
+            # Verbose logging for first batch of each epoch
+            if self.config.verbose and step == 1:
+                print(f"\n🔍 [Epoch {epoch}] Detailed Batch Info:")
+                print(f"   Input IDs shape: {batch['input_ids'].shape}")
+                print(f"   Input IDs (first sample): {batch['input_ids'][0]}")
+                print(f"   Target IDs (first sample): {batch['target_ids'][0]}")
+                print(f"   Loss mask (first sample): {batch['loss_mask'][0]}")
+                print(f"   Loss: {loss.item():.4f}")
+                print(f"   Unknown positions: {batch['loss_mask'][0].sum().item()} out of {batch['loss_mask'][0].shape[0]}")
+                print("   " + "="*60)
+
             self.optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -167,8 +173,8 @@ class MooreICLTrainer:
 
 
 @torch.no_grad()
-def evaluate_model(
-    model: MooreTransformer,
+def evaluate_vanilla_rnn_model(
+    model: MooreVanillaRNN,
     dataloader: DataLoader,
     device: torch.device,
 ) -> torch.Tensor:
@@ -188,4 +194,3 @@ def evaluate_model(
         total_tokens += mask.sum()
 
     return (total_correct.float() / total_tokens.float()).cpu()
-
