@@ -176,7 +176,7 @@ class MooreTransformer(nn.Module):
         
         self.blocks = nn.ModuleList([TransformerBlock(config, rope=self.rope) for _ in range(config.num_layers)])
         self.ln_f = nn.LayerNorm(config.d_model, eps=config.layer_norm_eps)
-        self.head = nn.Linear(config.d_model, config.num_states, bias=False)
+        self.head = nn.Linear(config.d_model, config.num_states)
 
         self.apply(self._init_weights)
 
@@ -202,7 +202,6 @@ class MooreTransformer(nn.Module):
 
         # Token embeddings only - RoPE is applied in attention layers
         x = self.token_embedding(input_ids)
-        # x = self.dropout(x)
         for block in self.blocks:
             x = block(x)
 

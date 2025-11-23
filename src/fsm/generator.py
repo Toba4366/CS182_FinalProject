@@ -3,6 +3,10 @@ Finite State Machine (FSM) generator utilities.
 
 The generator creates random connected Moore machines (without outputs for now).
 Each state has a set of outgoing actions that transition to other states.
+
+The generator is vocabulary-aware and uses fixed token ranges:
+- States: 0 to num_states-1 (always in range [0, MAX_STATES-1])
+- Actions: MAX_STATES to MAX_STATES+max_actions-1 (uses lowest available action indices)
 """
 
 from __future__ import annotations
@@ -10,6 +14,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from typing import Dict, Optional
+
+from . import MAX_STATES, MAX_ACTIONS
 
 
 FSM = Dict[int, Dict[int, int]]
@@ -21,14 +27,7 @@ class FSMGeneratorConfig:
     num_states: int = 5
     min_actions: int = 3
     max_actions: int = 8
-    action_count: int = 7
     seed: Optional[int] = None
-    
-    @property
-    #def action_count(self) -> int:
-    #    """Number of actions available in the alphabet."""
-    #    return self.num_states + 2
-
 
 class FSMGenerator:
     """
@@ -40,21 +39,26 @@ class FSMGenerator:
     """
 
     def __init__(self, config: FSMGeneratorConfig):
-        assert (
-            config.num_states >= 3
-        ), "An FSM requires at least three states to be interesting."
         
         assert (
-            config.min_actions <= config.action_count and config.max_actions >= config.action_count
-        ), "Action count in range."
+            config.num_states >= 2
+        ), "An FSM requires at least two states to be interesting."
+        assert (
+            config.num_states <= MAX_STATES
+        ), f"num_states ({config.num_states}) exceeds MAX_STATES ({MAX_STATES})"
+        assert (
+            config.min_actions >= 1
+        ), "Each state must have at least one outgoing action."
         assert (
             config.max_actions >= config.min_actions
         ), "max_actions must be >= min_actions."
+        assert (
+            config.max_actions <= MAX_ACTIONS
+        ), f"max_actions ({config.max_actions}) exceeds MAX_ACTIONS ({MAX_ACTIONS})"
 
         self.config = config
         self.rng = random.Random(config.seed)
-        start_id = config.num_states
-        self.action_ids = list(range(start_id, start_id + config.action_count))
+        self.action_ids = list(range(MAX_STATES, MAX_STATES + config.max_actions))
 
     def generate(self) -> FSM:
         """
@@ -120,5 +124,3 @@ class FSMGenerator:
         for action_id in self.action_ids:
             fsm[absorbing_state][action_id] = absorbing_state
         return fsm
-
-

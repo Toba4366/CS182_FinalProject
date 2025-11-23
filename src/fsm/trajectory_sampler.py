@@ -35,9 +35,9 @@ class TrajectorySamplerConfig:
         max_actions = max(min_actions, self.max_actions_per_state)
 
         return FSMGeneratorConfig(
-            num_states=max(3, self.num_states),
-            min_actions_per_state=min_actions,
-            max_actions_per_state=max_actions,
+            num_states=max(2, self.num_states),
+            min_actions=min_actions,
+            max_actions=max_actions,
             seed=self.seed,
         )
 

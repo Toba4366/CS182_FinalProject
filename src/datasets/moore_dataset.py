@@ -7,43 +7,48 @@ post-hoc analysis of the induced behaviour.
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, cast
-import torch
-from torch.utils.data import Dataset
+import torch # type: ignore
+from torch.utils.data import Dataset # type: ignore
 
 from src.fsm.trajectory_sampler import TrajectorySampler, TrajectorySamplerConfig
+from src.fsm import MAX_STATES, MAX_ACTIONS
 
 
 @dataclass
 class ICLDatasetConfig:
     """Configuration for the ICL-friendly dataset."""
 
-    num_samples: int = 256
-    demo_length: int = 64
-    query_length: int = 32
+    num_samples: int = 10_000
     sampler_config: TrajectorySamplerConfig = field(
         default_factory=TrajectorySamplerConfig
     )
     max_seq_len: int = 512
     cache_path: Path = Path("data/icl_dataset.pt")
+    # Optional explicit demo and query lengths (if None, computed as base_len * log(base_len))
+    demo_length: Optional[int] = None
+    query_length: Optional[int] = None
+    # Add randomness to lengths
+    length_variation: float = 0.2  # ±20% variation
 
 class MooreICLDataset(Dataset):
     """
     Dataset that stores trajectories suitable for in-context learning.
 
-    Vocabulary layout (per sample):
-        - 0 … num_states-1 : state IDs
-        - num_states … num_states+max_actions-1 : action IDs
+    Vocabulary layout (fixed):
+        - 0 … MAX_STATES-1 : state IDs (always 0-7, even if fewer states used)
+        - MAX_STATES … MAX_STATES+MAX_ACTIONS-1 : action IDs (always 8-17, even if fewer actions used)
         - `eos_token` : end-of-sequence marker between segments
         - `query_token` : marks the start of the query segment
         - `pad_token` : padding value for batching
 
     Each sample contains:
-        - One demo trajectory of length 64 for every start state in the FSM
-        - One query trajectory of length 32 whose states must be predicted from actions
+        - Multiple demo trajectories with variable lengths
+        - One query trajectory with variable length whose states must be predicted from actions
     """
 
     def __init__(
@@ -60,14 +65,13 @@ class MooreICLDataset(Dataset):
         self.sampler = TrajectorySampler(sampler_config)
         generator_cfg = self.sampler.generator.config
         self.num_states = generator_cfg.num_states
-        self.max_actions = generator_cfg.max_actions_per_state
+        self.max_actions = generator_cfg.max_actions
 
-        # Vocabulary layout
-        self.action_offset = self.num_states
-        self.eos_token = self.action_offset + self.max_actions
+        # Fixed vocabulary layout (always use MAX_STATES and MAX_ACTIONS)
+        self.action_offset = MAX_STATES
+        self.eos_token = MAX_STATES + MAX_ACTIONS
         self.query_token = self.eos_token + 1
-        self.unk_token = self.eos_token + 2
-        self.pad_token = self.eos_token + 3
+        self.pad_token = self.eos_token + 2
         self.vocab_size = self.pad_token + 1
 
         self.rng = random.Random(sampler_config.seed)
@@ -79,7 +83,7 @@ class MooreICLDataset(Dataset):
         sample = self.samples[self.sample_ids[idx]]
         demos = cast(List[Dict[str, List[int]]], sample["demos"])
         query = cast(Dict[str, List[int]], sample["query"])
-        demo_tokens = self._select_and_encode_demos(demos)
+        demo_tokens = self._select_and_encode_demos(demos, num_samples=3)
         sequence_tokens: List[int] = []
         sequence_mask: List[bool] = []
 
@@ -121,8 +125,11 @@ class MooreICLDataset(Dataset):
     # Helper methods
     # --------------------------------------------------------------------- #
     def _select_and_encode_demos(
-        self, demos: List[Dict[str, List[int]]], num_samples: int = 3
+        self, demos: List[Dict[str, List[int]]], num_samples: int
     ) -> List[List[int]]:
+        # Sample without replacement, but take all if num_samples >= len(demos)
+        if num_samples > len(demos):
+            num_samples = len(demos)
         choices = self.rng.sample(demos, num_samples)
         return [self._trajectory_to_tokens(traj) for traj in choices]
 
@@ -164,18 +171,38 @@ def _generate_icl_sample(
     config: ICLDatasetConfig,
     rng: random.Random,
 ) -> Dict[str, object]:
+    """Generate a single ICL sample with variable-length demos and query."""
     fsm = sampler.regenerate_fsm()
+    
+    # Compute base length from num_states * max_actions
+    generator_cfg = sampler.generator.config
+    base_length = generator_cfg.num_states * generator_cfg.max_actions
+    
+    # Compute demo and query lengths: use explicit if provided, otherwise base_len * log2(base_len)
+    if config.demo_length is not None:
+        demo_base = config.demo_length
+    else:
+        demo_base = int(base_length * math.log(base_length))
+    
+    if config.query_length is not None:
+        query_base = config.query_length
+    else:
+        query_base = int(base_length * math.log(base_length))
+    
+    # Add random variation to each demo
     demo_starts = list(fsm.keys())
-    demos = sampler.sample(
-        start_states=demo_starts,
-        trajectory_length=config.demo_length,
-    )
-
+    demos = []
+    for start_state in demo_starts:
+        variation = rng.uniform(-config.length_variation, config.length_variation)
+        demo_length = max(1, int(demo_base * (1 + variation)))
+        demo = sampler.rollout(demo_length, start_state=start_state)
+        demos.append(demo)
+    
+    # Add random variation to query
     query_state = rng.choice(list(fsm.keys()))
-    query = sampler.sample(
-        start_states=[query_state],
-        trajectory_length=config.query_length,
-    )[0]
+    variation = rng.uniform(-config.length_variation, config.length_variation)
+    query_length = max(1, int(query_base * (1 + variation)))
+    query = sampler.rollout(query_length, start_state=query_state)
 
     return {"fsm": fsm, "demos": demos, "query": query}
 
