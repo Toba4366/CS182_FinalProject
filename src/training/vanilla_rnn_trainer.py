@@ -5,7 +5,7 @@ Training utilities for the Moore machine ICL Vanilla RNN.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 try:
     import torch  # type: ignore
@@ -98,15 +98,41 @@ class MooreVanillaRNNTrainer:
             lr=config.learning_rate,
             weight_decay=config.weight_decay,
         )
+        
+        # Training history
+        self.train_losses: List[float] = []
+        self.val_losses: List[float] = []
+        self.train_accs: List[float] = []
+        self.val_accs: List[float] = []
 
-    def train(self):
+    def train(self) -> Dict[str, List[float]]:
+        """Train the model and return training history."""
         for epoch in range(1, self.config.num_epochs + 1):
             train_loss = self._run_epoch(epoch)
             val_loss = self.evaluate()
+            
+            # Calculate accuracies
+            train_acc = self._calculate_accuracy(self.train_loader)
+            val_acc = self._calculate_accuracy(self.val_loader)
+            
+            # Store history
+            self.train_losses.append(train_loss)
+            self.val_losses.append(val_loss)
+            self.train_accs.append(train_acc)
+            self.val_accs.append(val_acc)
+            
             print(
                 f"[Epoch {epoch}] Train Loss: {train_loss:.4f} | "
-                f"Val Loss: {val_loss:.4f}"
+                f"Val Loss: {val_loss:.4f} | "
+                f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}"
             )
+        
+        return {
+            "train_losses": self.train_losses,
+            "val_losses": self.val_losses,
+            "train_accs": self.train_accs,
+            "val_accs": self.val_accs,
+        }
 
     def _run_epoch(self, epoch: int) -> float:
         self.model.train()
@@ -170,6 +196,26 @@ class MooreVanillaRNNTrainer:
 
     def _move_to_device(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         return {k: v.to(self.device) for k, v in batch.items()}
+    
+    @torch.no_grad()
+    def _calculate_accuracy(self, dataloader: DataLoader) -> float:
+        """Calculate accuracy on a dataset."""
+        self.model.eval()
+        total_correct = 0
+        total_tokens = 0
+        
+        for batch in dataloader:
+            batch = self._move_to_device(batch)
+            logits, _ = self.model(batch["input_ids"])
+            predictions = logits.argmax(dim=-1)
+            
+            mask = batch["loss_mask"]
+            targets = batch["target_ids"]
+            
+            total_correct += ((predictions == targets) & mask).sum().item()
+            total_tokens += mask.sum().item()
+        
+        return total_correct / max(1, total_tokens)
 
 
 @torch.no_grad()

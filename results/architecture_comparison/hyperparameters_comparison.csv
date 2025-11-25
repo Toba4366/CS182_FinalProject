@@ -1,0 +1,15 @@
+Parameter,Vanilla RNN,LSTM
+Architecture,RNN with tanh activation,LSTM (unidirectional)
+Hidden Dimension (d_model),256,256
+Number of Layers,2,2
+Dropout Rate,0.1,0.1
+Batch Size,8,8
+Learning Rate,1e-3 (0.001),1e-3 (0.001)
+Optimizer,AdamW,AdamW
+Vocabulary Size,21 (states + actions + special tokens),21 (states + actions + special tokens)
+Max Sequence Length,800 (complex) / 512 (simple),800 (complex) / 512 (simple)
+Training Epochs (Direct),20,16
+Training Epochs (Curriculum Stage 1),20,16
+Training Epochs (Curriculum Stage 2),20,12
+Bidirectional,No,No
+Total Parameters (approx),~200K,~800K (4x vanilla RNN)

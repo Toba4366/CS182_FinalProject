@@ -5,6 +5,12 @@ Entry point for training the Moore LSTM in an ICL setting.
 from __future__ import annotations
 
 import argparse
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+import torch  # type: ignore
 from torch.utils.data import DataLoader, random_split # type: ignore
 
 from src.datasets.moore_dataset import (
@@ -56,19 +62,19 @@ def main():
     train_dataset = MooreICLDataset(
         train_indices,
         all_samples,
-        dataset_cfg.sampler_config,
+        dataset_cfg.traj_sampler_config,
         dataset_cfg.max_seq_len,
     )
     val_dataset = MooreICLDataset(
         val_indices,
         all_samples,
-        dataset_cfg.sampler_config,
+        dataset_cfg.traj_sampler_config,
         dataset_cfg.max_seq_len,
     )
     test_dataset = MooreICLDataset(
         test_indices,
         all_samples,
-        dataset_cfg.sampler_config,
+        dataset_cfg.traj_sampler_config,
         dataset_cfg.max_seq_len,
     )
 
@@ -97,9 +103,11 @@ def main():
         collator=collator,
         config=trainer_cfg,
     )
-    trainer.train()
+    
+    # Train and get history
+    history = trainer.train()
 
-    print("Evaluating on validation set...")
+    print("\nEvaluating on validation set...")
     val_acc = evaluate_lstm_model(trainer.model, trainer.val_loader, trainer.device)
     print(f"Validation Accuracy: {val_acc.item():.4f}")
 
@@ -112,6 +120,74 @@ def main():
     )
     test_acc = evaluate_lstm_model(trainer.model, test_loader, trainer.device)
     print(f"Test Accuracy: {test_acc.item():.4f}")
+    
+    # Save checkpoint and training logs
+    log_dir = Path("checkpoints/training_logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Save checkpoint
+    checkpoint_path = log_dir / f"lstm_direct_{timestamp}.pt"
+    torch.save({
+        "epoch": args.epochs,
+        "model_state_dict": trainer.model.state_dict(),
+        "optimizer_state_dict": trainer.optimizer.state_dict(),
+        "train_losses": history["train_losses"],
+        "val_losses": history["val_losses"],
+        "train_accs": history["train_accs"],
+        "val_accs": history["val_accs"],
+        "final_val_acc": val_acc.item(),
+        "final_test_acc": test_acc.item(),
+        "model_config": {
+            "vocab_size": model_cfg.vocab_size,
+            "num_states": model_cfg.num_states,
+            "d_model": model_cfg.d_model,
+            "num_layers": model_cfg.num_layers,
+            "dropout": model_cfg.dropout,
+            "bidirectional": model_cfg.bidirectional,
+        },
+        "training_config": {
+            "batch_size": trainer_cfg.batch_size,
+            "learning_rate": trainer_cfg.learning_rate,
+            "num_epochs": trainer_cfg.num_epochs,
+        }
+    }, checkpoint_path)
+    print(f"\n✅ Checkpoint saved to: {checkpoint_path}")
+    
+    # Save training metrics to JSON
+    metrics = {
+        "experiment": "lstm_direct",
+        "timestamp": timestamp,
+        "model_config": {
+            "vocab_size": model_cfg.vocab_size,
+            "num_states": model_cfg.num_states,
+            "d_model": model_cfg.d_model,
+            "num_layers": model_cfg.num_layers,
+            "dropout": model_cfg.dropout,
+            "bidirectional": model_cfg.bidirectional,
+        },
+        "training_config": {
+            "batch_size": trainer_cfg.batch_size,
+            "learning_rate": trainer_cfg.learning_rate,
+            "num_epochs": trainer_cfg.num_epochs,
+        },
+        "training_history": {
+            "train_losses": history["train_losses"],
+            "val_losses": history["val_losses"],
+            "train_accs": history["train_accs"],
+            "val_accs": history["val_accs"],
+        },
+        "final_results": {
+            "val_accuracy": val_acc.item(),
+            "test_accuracy": test_acc.item(),
+        }
+    }
+    
+    metrics_path = log_dir / f"lstm_direct_{timestamp}_metrics.json"
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    print(f"✅ Metrics saved to: {metrics_path}")
 
 
 if __name__ == "__main__":

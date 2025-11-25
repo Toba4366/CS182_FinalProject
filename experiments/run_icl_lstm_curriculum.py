@@ -6,6 +6,8 @@ This script supports training on simple vs complex FSMs for curriculum learning 
 from __future__ import annotations
 
 import argparse
+import json
+from datetime import datetime
 import torch
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -81,7 +83,7 @@ def get_dataset_config(dataset_type: str, num_samples: int, max_seq_len: int) ->
     
     return ICLDatasetConfig(
         num_samples=num_samples,
-        sampler_config=sampler_config,
+        traj_sampler_config=sampler_config,
         max_seq_len=max_seq_len,
         cache_path=cache_path,
     )
@@ -100,8 +102,8 @@ def main():
     dataset_cfg = get_dataset_config(args.dataset_type, args.num_samples, args.max_seq_len)
     
     print(f"📊 Dataset: {args.dataset_type} FSM")
-    print(f"📊 Sampler config: {dataset_cfg.sampler_config.num_states} states, "
-          f"{dataset_cfg.sampler_config.min_actions_per_state}-{dataset_cfg.sampler_config.max_actions_per_state} actions")
+    print(f"📊 Sampler config: {dataset_cfg.traj_sampler_config.num_states} states, "
+          f"{dataset_cfg.traj_sampler_config.min_actions_per_state}-{dataset_cfg.traj_sampler_config.max_actions_per_state} actions")
 
     # Load dataset
     all_samples = load_or_create_icl_samples(dataset_cfg)
@@ -115,19 +117,19 @@ def main():
     train_dataset = MooreICLDataset(
         train_indices,
         all_samples,
-        dataset_cfg.sampler_config,
+        dataset_cfg.traj_sampler_config,
         dataset_cfg.max_seq_len,
     )
     val_dataset = MooreICLDataset(
         val_indices,
         all_samples,
-        dataset_cfg.sampler_config,
+        dataset_cfg.traj_sampler_config,
         dataset_cfg.max_seq_len,
     )
     test_dataset = MooreICLDataset(
         test_indices,
         all_samples,
-        dataset_cfg.sampler_config,
+        dataset_cfg.traj_sampler_config,
         dataset_cfg.max_seq_len,
     )
 
@@ -149,7 +151,7 @@ def main():
     
     # Load from previous checkpoint if specified (for curriculum stage 2)
     if args.load_from:
-        checkpoint_path = Path(args.save_dir) / f"lstm_{args.load_from}.pt"
+        checkpoint_path = Path(args.load_from)
         if checkpoint_path.exists():
             print(f"🔄 Loading model from {checkpoint_path}")
             state_dict = torch.load(checkpoint_path, map_location='cpu')
@@ -191,10 +193,10 @@ def main():
     
     # Train the model
     print(f"🚀 Starting training for {args.epochs} epochs...")
-    trainer.train()
+    history = trainer.train()
 
     # Evaluate
-    print("📊 Final Evaluation:")
+    print("\n📊 Final Evaluation:")
     val_acc = evaluate_lstm_model(trainer.model, trainer.val_loader, trainer.device)
     print(f"Validation Accuracy: {val_acc.item():.4f}")
 
@@ -213,7 +215,85 @@ def main():
     torch.save(trainer.model.state_dict(), save_path)
     print(f"💾 Model saved to {save_path}")
     
-    print("=" * 60)
+    # Save training logs
+    log_dir = Path("checkpoints/training_logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Save full checkpoint with training history
+    checkpoint_path = log_dir / f"lstm_{args.checkpoint_name}_{timestamp}.pt"
+    torch.save({
+        "epoch": args.epochs,
+        "model_state_dict": trainer.model.state_dict(),
+        "optimizer_state_dict": trainer.optimizer.state_dict(),
+        "train_losses": history["train_losses"],
+        "val_losses": history["val_losses"],
+        "train_accs": history["train_accs"],
+        "val_accs": history["val_accs"],
+        "final_val_acc": val_acc.item(),
+        "final_test_acc": test_acc.item(),
+        "model_config": {
+            "vocab_size": model_cfg.vocab_size,
+            "num_states": model_cfg.num_states,
+            "d_model": model_cfg.d_model,
+            "num_layers": model_cfg.num_layers,
+            "dropout": model_cfg.dropout,
+            "bidirectional": model_cfg.bidirectional,
+        },
+        "training_config": {
+            "batch_size": trainer_cfg.batch_size,
+            "learning_rate": trainer_cfg.learning_rate,
+            "num_epochs": trainer_cfg.num_epochs,
+        },
+        "curriculum_info": {
+            "dataset_type": args.dataset_type,
+            "checkpoint_name": args.checkpoint_name,
+            "loaded_from": args.load_from,
+        }
+    }, checkpoint_path)
+    print(f"✅ Full checkpoint saved to: {checkpoint_path}")
+    
+    # Save training metrics to JSON
+    metrics = {
+        "experiment": f"lstm_curriculum_{args.dataset_type}",
+        "checkpoint_name": args.checkpoint_name,
+        "timestamp": timestamp,
+        "model_config": {
+            "vocab_size": model_cfg.vocab_size,
+            "num_states": model_cfg.num_states,
+            "d_model": model_cfg.d_model,
+            "num_layers": model_cfg.num_layers,
+            "dropout": model_cfg.dropout,
+            "bidirectional": model_cfg.bidirectional,
+        },
+        "training_config": {
+            "batch_size": trainer_cfg.batch_size,
+            "learning_rate": trainer_cfg.learning_rate,
+            "num_epochs": trainer_cfg.num_epochs,
+        },
+        "curriculum_info": {
+            "dataset_type": args.dataset_type,
+            "loaded_from": args.load_from,
+        },
+        "training_history": {
+            "train_losses": history["train_losses"],
+            "val_losses": history["val_losses"],
+            "train_accs": history["train_accs"],
+            "val_accs": history["val_accs"],
+        },
+        "final_results": {
+            "val_accuracy": val_acc.item(),
+            "test_accuracy": test_acc.item(),
+        }
+    }
+    
+    metrics_path = log_dir / f"lstm_{args.checkpoint_name}_{timestamp}_metrics.json"
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    print(f"✅ Metrics saved to: {metrics_path}")
+    
+    print("\n" + "=" * 60)
     print(f"✅ COMPLETED: LSTM - {args.dataset_type.upper()} FSM")
     print(f"📊 Final Validation Accuracy: {val_acc.item():.4f}")
     print(f"📊 Final Test Accuracy: {test_acc.item():.4f}")
