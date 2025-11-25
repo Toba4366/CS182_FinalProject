@@ -4,6 +4,8 @@ Trajectory sampler built on top of the FSM generator.
 The sampler produces a fixed number of trajectories by performing random walks
 over the generated FSM. Each trajectory records both states and actions so that
 we can reconstruct the underlying dynamics later.
+
+
 """
 
 from __future__ import annotations

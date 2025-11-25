@@ -19,11 +19,15 @@ from . import MAX_STATES, MAX_ACTIONS
 
 
 FSM = Dict[int, Dict[int, int]]
-
+# Outer dictionary: Current state
+# Inner dictionary: All outgoing transitions from that state
 
 @dataclass
 class FSMGeneratorConfig:
-    """Configuration object for the FSM generator."""
+    """Configuration object for the FSM generator.
+
+        Default configs: 5 states, 8 actions
+    """
     num_states: int = 5
     min_actions: int = 3
     max_actions: int = 8
@@ -39,6 +43,7 @@ class FSMGenerator:
     """
 
     def __init__(self, config: FSMGeneratorConfig):
+    # Check and store config, build action vocabulary
         
         assert (
             config.num_states >= 2
@@ -69,6 +74,15 @@ class FSMGenerator:
             where every state has exactly one outgoing transition for
             each action in self.action_ids (i.e., a total, deterministic
             transition function over a shared action alphabet).
+
+        Example output:
+        fsm = {
+            0: {8: 1,  9: 2, 10: 4, 11: 3, 12: 0, 13: 2, 14: 1, 15: 4},
+            1: {8: 3,  9: 0, 10: 2, 11: 4, 12: 1, 13: 3, 14: 0, 15: 2},
+            2: {8: 4,  9: 1, 10: 0, 11: 2, 12: 3, 13: 4, 14: 1, 15: 0},
+            3: {8: 0,  9: 3, 10: 1, 11: 4, 12: 2, 13: 0, 14: 3, 15: 1},
+            4: {8: 2,  9: 4, 10: 3, 11: 1, 12: 0, 13: 2, 14: 4, 15: 3},
+        }
         """
         num_states = self.config.num_states
 
@@ -106,7 +120,7 @@ class FSMGenerator:
 
         return fsm
 
-
+    # Helper to avoid reusing an action
     def _sample_action_id(self, state_actions: Dict[int, int]) -> int:
         """Sample an unused action ID for the given state's dictionary."""
         available = [a for a in self.action_ids if a not in state_actions]
@@ -117,6 +131,7 @@ class FSMGenerator:
         return self.rng.choice(available)
 
     def generate_with_absorbing_state(self) -> FSM:
+        """Generate a DFA with a random absorbing state"""
         fsm = self.generate()  # generate a DFA
         num_states = self.config.num_states
         absorbing_state = self.rng.randrange(num_states)  # pick one at random
