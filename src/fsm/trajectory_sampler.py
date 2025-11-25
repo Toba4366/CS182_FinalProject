@@ -4,8 +4,6 @@ Trajectory sampler built on top of the FSM generator.
 The sampler produces a fixed number of trajectories by performing random walks
 over the generated FSM. Each trajectory records both states and actions so that
 we can reconstruct the underlying dynamics later.
-
-
 """
 
 from __future__ import annotations
@@ -18,6 +16,22 @@ from .generator import FSM, FSMGenerator, FSMGeneratorConfig
 
 
 Trajectory = Dict[str, Sequence[int]]
+"""
+Dict with two keys:
+    "states" -> list of state IDs
+    "actions" -> list of action IDs
+
+Ex) Output
+[
+    {
+        "states": [...], => Length 65
+        "actions": [...] => Length 64
+    },
+
+    {"states": [...], "actions": [...]},
+    {"states": [...], "actions": [...]},
+]
+"""
 
 
 @dataclass
@@ -43,11 +57,11 @@ class TrajectorySamplerConfig:
             seed=self.seed,
         )
 
-
 class TrajectorySampler:
     """Sampler that uses the FSM generator to create rollouts."""
 
     def __init__(self, config: TrajectorySamplerConfig):
+        """Generate FSM."""
         self.config = config
         self.rng = random.Random(config.seed)
         self.generator = FSMGenerator(config.to_generator_config())
@@ -73,29 +87,31 @@ class TrajectorySampler:
 
         Args:
             start_states: optional list of starting states (None -> random).
-            trajectory_length: optional override for rollout length.
+            trajectory_length: optional override for rollout length (default: 64).
             regenerate: whether to sample a fresh FSM before rolling out.
         """
         if regenerate or self.fsm is None:
             self.regenerate_fsm()
 
-        length = trajectory_length or self.config.trajectory_length
+        traj_length = trajectory_length or self.config.trajectory_length
         num_traj = len(start_states) if start_states is not None else self.config.num_trajectories
         start_states = start_states or [None] * num_traj
         return [
-            self.rollout(length, start_state=state)
+            self.rollout(traj_length, start_state=state) 
             for state in start_states
+            # Generate one random walk for each start state
         ]
+    
 
     def rollout(
-        self, length: int, start_state: Optional[int] = None
+        self, traj_length: int, start_state: Optional[int] = None
     ) -> Trajectory:
-        """Perform a random walk over the FSM."""
+        """Perform one random walk over the FSM."""
         state = start_state if start_state is not None else self.rng.choice(list(self.fsm.keys()))
         states = [state]
         actions = []
 
-        for _ in range(length):
+        for _ in range(traj_length):
             transitions = self.fsm[state]
 
             state_actions = list(transitions.keys())
