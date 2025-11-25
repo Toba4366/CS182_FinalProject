@@ -24,7 +24,7 @@ class ICLDatasetConfig:
     """Configuration for the ICL-friendly dataset."""
 
     num_samples: int = 10_000
-    sampler_config: TrajectorySamplerConfig = field(
+    traj_sampler_config: TrajectorySamplerConfig = field(
         default_factory=TrajectorySamplerConfig
     )
     max_seq_len: int = 512
@@ -55,14 +55,14 @@ class MooreICLDataset(Dataset):
         self,
         sample_indices: List[int],
         all_samples: List[Dict[str, object]],
-        sampler_config: TrajectorySamplerConfig,
+        traj_sampler_config: TrajectorySamplerConfig,
         max_seq_len: int,
     ):
         self.sample_ids = sample_indices
         self.samples = all_samples
         self.max_seq_len = max_seq_len
 
-        self.sampler = TrajectorySampler(sampler_config)
+        self.sampler = TrajectorySampler(traj_sampler_config)
         generator_cfg = self.sampler.generator.config
         self.num_states = generator_cfg.num_states
         self.max_actions = generator_cfg.max_actions
@@ -74,12 +74,42 @@ class MooreICLDataset(Dataset):
         self.pad_token = self.eos_token + 2
         self.vocab_size = self.pad_token + 1
 
-        self.rng = random.Random(sampler_config.seed)
+        self.rng = random.Random(traj_sampler_config.seed)
 
     def __len__(self) -> int:
         return len(self.sample_ids)
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        """
+        Takes one FSM exampthe tale and compiles its demo and query trajectories into a single token sequence.
+        Builds the shifted inputs, targets, and loss mask for that token sequence and returns them as PyTorch tensors. 
+
+        Ex) 
+            sequence_tokens = [0, 8, 1, 8, 2, <eos>, 1, 9, 2, 8, 0, <eos>, <query>, 2, 9, 0, 8, 1, <eos>]
+            sequence_mask   = [F, F, F, F, F,  F,   F, F, F, F, F,  F,   F,  F, F, T, F, T, F]
+
+            {
+                "input_ids": torch.tensor(
+                    [0, 0, 8, 1, 8, 2, <eos>, 1, 9, 2, 8, 0, <eos>, <query>, 2, 9, 0, 8, 1, <eos>],
+                    dtype=torch.long
+                ),
+
+                "target_ids": torch.tensor(
+                    [0, 8, 1, 8, 2, <eos>, 1, 9, 2, 8, 0, <eos>, <query>, 2, 9, 0, 8, 1, <eos>],
+                    dtype=torch.long
+                ),
+
+                "loss_mask": torch.tensor(
+                    [False, False, False, False, False,
+                    False, False, False, False, False,
+                    False, False, False, False, False,
+                    True,  False, True,  False],
+                    dtype=torch.bool
+                )           
+            }
+        
+        """
+        
         sample = self.samples[self.sample_ids[idx]]
         demos = cast(List[Dict[str, List[int]]], sample["demos"])
         query = cast(Dict[str, List[int]], sample["query"])
@@ -127,6 +157,7 @@ class MooreICLDataset(Dataset):
     def _select_and_encode_demos(
         self, demos: List[Dict[str, List[int]]], num_samples: int
     ) -> List[List[int]]:
+        """Turn each demo trajectory into a token sequence using _trajectory_to_tokens"""
         # Sample without replacement, but take all if num_samples >= len(demos)
         if num_samples > len(demos):
             num_samples = len(demos)
@@ -134,6 +165,16 @@ class MooreICLDataset(Dataset):
         return [self._trajectory_to_tokens(traj) for traj in choices]
 
     def _trajectory_to_tokens(self, traj: Dict[str, List[int]]) -> List[int]:
+        """
+        Turns a trajectory into a token sequence: [state, action, state]
+        Ex)
+            trajectory = {
+                "states":  [0, 1, 2],
+                "actions": [8, 9],
+            }
+
+            tokens = [0, 8, 1, 9, 2]
+        """
         tokens: List[int] = []
         states = traj["states"]
         actions = traj["actions"]
@@ -147,6 +188,17 @@ class MooreICLDataset(Dataset):
     def _encode_query(
         self, traj: Dict[str, List[int]]
     ) -> Tuple[List[int], List[bool]]:
+        """
+        Converts the query into a token sequence and builds a parallel mask array
+
+        Mask array:
+            False: Starting state and all actions
+            True: Each next state
+
+        Ex)
+            tokens = [2, 9, 0, 8, 1]
+            mask   = [F, F, T, F, T]
+        """
         tokens: List[int] = []
         mask: List[bool] = []
         states = traj["states"]
@@ -164,6 +216,7 @@ class MooreICLDataset(Dataset):
             mask.append(True)
 
         return tokens, mask
+    
 
 
 def _generate_icl_sample(
@@ -206,8 +259,16 @@ def _generate_icl_sample(
 
     return {"fsm": fsm, "demos": demos, "query": query}
 
+    """
+    return value = {
+        "fsm":   <FSM dictionary>,
+        "demos": <List of trajectories>,
+        "query": <One trajectory>
+    }
+    """
 
 def load_or_create_icl_samples(config: ICLDatasetConfig) -> List[Dict[str, object]]:
+    """Generate multiple ICL samples"""
     if config.cache_path.exists():
         with config.cache_path.open("rb") as f:
             samples = torch.load(f)
