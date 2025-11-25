@@ -12,6 +12,7 @@ from src.training.lstm_trainer import MooreLSTMTrainer, ICLDataCollator as LSTMC
 from src.models.moore_vanilla_rnn import create_moore_vanilla_rnn
 from src.models.moore_lstm import create_moore_lstm
 from src.models.moore_transformer import MooreTransformer, TransformerConfig
+from src.models.moore_s4 import MooreS4, S4Config
 
 
 class MockDataset:
@@ -171,7 +172,36 @@ class TestMooreICLTrainer:
         assert trainer.model is not None
         assert len(trainer.train_loader) > 0
         assert len(trainer.val_loader) > 0
-    
+
+    def test_trainer_with_s4(self, mock_datasets, collator, training_config):
+        """Test trainer with S4."""
+        train_dataset, val_dataset = mock_datasets
+
+        config = S4Config(
+            vocab_size=20,
+            num_states=64,
+            d_model=32,
+            num_layers=1,
+            max_seq_len=100,
+        )
+        model = MooreS4(config)
+
+        trainer = MooreICLTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            collator=collator,
+            config=training_config,
+        )
+
+        assert trainer.model is not None
+        assert len(trainer.train_loader) > 0
+        assert len(trainer.val_loader) > 0
+
+
+    def test_trainer_with_mamba(self, mock_datasets, training_config):
+        """Test trainer with Mamba."""
+
     def test_training_step(self, mock_datasets, training_config):
         """Test a single training step."""
         train_dataset, val_dataset = mock_datasets

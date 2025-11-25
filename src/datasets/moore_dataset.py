@@ -90,7 +90,7 @@ class MooreICLDataset(Dataset):
 
             {
                 "input_ids": torch.tensor(
-                    [0, 0, 8, 1, 8, 2, <eos>, 1, 9, 2, 8, 0, <eos>, <query>, 2, 9, 0, 8, 1, <eos>],
+                    [0, 0, 8, 1, 8, 2, <eos>, 1, 9, 2, 8, 0, <eos>, <query>, 2, 9, 0, 8, 1],
                     dtype=torch.long
                 ),
 
@@ -274,8 +274,8 @@ def load_or_create_icl_samples(config: ICLDatasetConfig) -> List[Dict[str, objec
             samples = torch.load(f)
         return samples
 
-    sampler = TrajectorySampler(config.sampler_config)
-    rng = random.Random(config.sampler_config.seed)
+    sampler = TrajectorySampler(config.traj_sampler_config)
+    rng = random.Random(config.traj_sampler_config.seed)
     samples = [
         _generate_icl_sample(sampler, config, rng)
         for _ in range(config.num_samples)

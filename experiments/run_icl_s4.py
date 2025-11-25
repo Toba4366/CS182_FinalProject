@@ -1,5 +1,5 @@
 """
-Entry point for training the Moore S$ in an ICL setting.
+Entry point for training the Moore S4 model in an ICL setting.
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ def main():
         num_layers=args.num_layers,
         # kernel_size, d_ff, dropout use defaults in S4Config
     )
-    model = MooreS4(model)
+    model = MooreS4(model_cfg)
 
     collator = ICLDataCollator(pad_token_id=pad_token)
     trainer_cfg = TrainingConfig(
