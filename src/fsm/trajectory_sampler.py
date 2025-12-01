@@ -24,8 +24,8 @@ Dict with two keys:
 Ex) Output
 [
     {
-        "states": [...], => Length 65
-        "actions": [...] => Length 64
+        "states": [...], ->Length 65
+        "actions": [...] -> Length 64
     },
 
     {"states": [...], "actions": [...]},

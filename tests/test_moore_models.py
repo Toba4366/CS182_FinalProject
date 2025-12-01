@@ -8,6 +8,9 @@ import torch
 from src.models.moore_vanilla_rnn import MooreVanillaRNN, VanillaRNNConfig, create_moore_vanilla_rnn
 from src.models.moore_lstm import MooreLSTM, LSTMConfig, create_moore_lstm
 from src.models.moore_transformer import MooreTransformer, TransformerConfig
+from src.models.moore_s4 import MooreS4, S4Config
+from src.models.moore_s4_official import (MooreS4 as MooreS4Official, S4Config as S4OfficialConfig,)
+
 
 
 @pytest.fixture
@@ -221,6 +224,62 @@ class TestMooreTransformer:
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0  # scalar
 
+class TestMooreS4:
+    """Test suite for Moore S4 model."""
+
+    def test_model_creation(self, sample_config):
+        config = S4Config(**sample_config)
+        model = MooreS4(config)
+        assert isinstance(model, MooreS4)
+        assert model.config.vocab_size == 20
+        assert model.config.num_states == 5
+
+    def test_forward_pass(self, sample_config, sample_batch):
+        config = S4Config(**sample_config)
+        model = MooreS4(config)
+
+        logits, loss = model(sample_batch["input_ids"])
+        assert logits.shape == (4, 50, 5)
+        assert loss is None
+
+        logits, loss = model(
+            sample_batch["input_ids"],
+            targets=sample_batch["targets"],
+            unknown_mask=sample_batch["unknown_mask"],
+        )
+        assert logits.shape == (4, 50, 5)
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
+
+class TestMooreS4Official:
+    """Test suite for Moore S4 model (official implementation)."""
+
+    def test_model_creation(self, sample_config):
+        config = S4OfficialConfig(**sample_config)
+        model = MooreS4Official(config)
+        assert isinstance(model, MooreS4Official)
+        assert model.config.vocab_size == 20
+        assert model.config.num_states == 5
+
+    def test_forward_pass(self, sample_config, sample_batch):
+        config = S4OfficialConfig(**sample_config)
+        model = MooreS4Official(config)
+
+        # Without targets
+        logits, loss = model(sample_batch["input_ids"])
+        assert logits.shape == (4, 50, 5)
+        assert loss is None
+
+        # With targets + mask
+        logits, loss = model(
+            sample_batch["input_ids"],
+            targets=sample_batch["targets"],
+            unknown_mask=sample_batch["unknown_mask"],
+        )
+        assert logits.shape == (4, 50, 5)
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
+
 
 class TestModelComparison:
     """Test that all models have consistent interfaces."""
@@ -231,8 +290,9 @@ class TestModelComparison:
         vanilla_rnn = create_moore_vanilla_rnn(**sample_config)
         lstm = create_moore_lstm(**sample_config)
         transformer = MooreTransformer(TransformerConfig(**sample_config, num_heads=8))
+        s4 = MooreS4(S4Config(**sample_config))
         
-        models = [vanilla_rnn, lstm, transformer]
+        models = [vanilla_rnn, lstm, transformer, s4]
         
         for model in models:
             # Test forward pass consistency

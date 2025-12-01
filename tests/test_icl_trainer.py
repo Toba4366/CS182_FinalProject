@@ -13,6 +13,7 @@ from src.models.moore_vanilla_rnn import create_moore_vanilla_rnn
 from src.models.moore_lstm import create_moore_lstm
 from src.models.moore_transformer import MooreTransformer, TransformerConfig
 from src.models.moore_s4 import MooreS4, S4Config
+from src.models.moore_s4_official import (MooreS4 as MooreS4Official, S4Config as S4OfficialConfig)
 
 
 class MockDataset:
@@ -179,7 +180,7 @@ class TestMooreICLTrainer:
 
         config = S4Config(
             vocab_size=20,
-            num_states=64,
+            num_states=5,
             d_model=32,
             num_layers=1,
             max_seq_len=100,
@@ -198,6 +199,32 @@ class TestMooreICLTrainer:
         assert len(trainer.train_loader) > 0
         assert len(trainer.val_loader) > 0
 
+    def test_trainer_with_s4_official(self, mock_datasets, collator, training_config):
+        """Test trainer with S4 (official implementation)."""
+        train_dataset, val_dataset = mock_datasets
+
+        # Use the official S4 config/model aliases
+        config = S4OfficialConfig(
+            vocab_size=20,
+            num_states=5,   # mock targets are in [0, 4]
+            d_model=32,
+            num_layers=1,
+            max_seq_len=100,
+        )
+        model = MooreS4Official(config)
+
+        trainer = MooreICLTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            collator=collator,
+            config=training_config,
+        )
+
+        # Basic sanity checks: dataloaders get built and model is attached
+        assert trainer.model is not None
+        assert len(trainer.train_loader) > 0
+        assert len(trainer.val_loader) > 0
 
     def test_trainer_with_mamba(self, mock_datasets, training_config):
         """Test trainer with Mamba."""
