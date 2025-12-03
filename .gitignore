@@ -71,7 +71,10 @@ venv.bak/
 dmypy.json
 
 # Experiment results and checkpoints
-results/
+results/*
+!results/architecture_comparison
+results/architecture_comparison/*
+!results/architecture_comparison/*.ipynb
 checkpoints/
 logs/
 wandb/
@@ -90,3 +93,6 @@ Thumbs.db
 *.pdf
 sample_fsm.png
 !papers/*.pdf
+
+# Exploration files - only ignore results, not the scripts
+experiments/explorations/results/

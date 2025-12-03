@@ -1,0 +1,89 @@
+================================================================================
+RNN EXPLORATION EXPERIMENTS - SETUP COMPLETE
+================================================================================
+
+✅ NEW MODELS CREATED:
+  • src/models/moore_gru.py - GRU architecture for FSM ICL
+  • src/training/gru_trainer.py - GRU trainer with history tracking
+
+✅ EXPERIMENT SCRIPTS:
+  • experiments/explorations/explore_rnn_capacity.py - Capacity & depth tests
+  • experiments/explorations/run_gru_experiment.py - GRU baseline comparison
+  • experiments/explorations/run_all_exploration.py - Orchestration script
+
+✅ ANALYSIS NOTEBOOK:
+  • results/architecture_comparison/rnn_exploration_analysis.ipynb
+
+================================================================================
+EXPERIMENTS TO RUN
+================================================================================
+
+1. CAPACITY TESTS (Hidden Dimension)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Test: Does model capacity matter more than architecture?
+   
+   Commands:
+   python experiments/explorations/explore_rnn_capacity.py --d-model 256 --experiment-name rnn_d256_baseline
+   python experiments/explorations/explore_rnn_capacity.py --d-model 512 --experiment-name rnn_d512
+   python experiments/explorations/explore_rnn_capacity.py --d-model 1024 --experiment-name rnn_d1024
+
+2. DEPTH TESTS (Number of Layers)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Test: Can deep RNNs overcome gating limitations?
+   
+   Commands:
+   python experiments/explorations/explore_rnn_capacity.py --num-layers 2 --experiment-name rnn_l2_baseline
+   python experiments/explorations/explore_rnn_capacity.py --num-layers 5 --experiment-name rnn_l5
+   python experiments/explorations/explore_rnn_capacity.py --num-layers 16 --experiment-name rnn_l16
+
+3. GRU COMPARISON (Architecture Spectrum)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Test: Where does GRU fall: RNN → GRU → LSTM?
+   
+   Command:
+   python experiments/explorations/run_gru_experiment.py --experiment-name gru_baseline
+
+4. RUN ALL AT ONCE
+   ━━━━━━━━━━━━━━━━
+   python experiments/explorations/run_all_exploration.py --mode all
+
+================================================================================
+EXPECTED TIMELINE
+================================================================================
+
+Each experiment takes ~15-20 minutes on CPU, ~5 minutes on GPU:
+  • Capacity tests (3): ~1 hour total
+  • Depth tests (3): ~1 hour total  
+  • GRU test (1): ~20 minutes
+  
+Total time: ~2.5 hours for all experiments
+
+================================================================================
+RESEARCH INSIGHTS TO EXPECT
+================================================================================
+
+📊 CAPACITY HYPOTHESIS:
+   IF large RNN (1024d) ≈ LSTM → Capacity matters more than gating
+   IF large RNN (1024d) ≈ small RNN → Architecture matters, not capacity
+
+📊 DEPTH HYPOTHESIS:
+   IF deep RNN (16L) ≈ LSTM → Depth can substitute for gating
+   IF deep RNN (16L) ≈ shallow RNN → Vanishing gradients limit RNNs
+
+📊 GRU HYPOTHESIS:
+   IF GRU ≈ LSTM → Simple gating sufficient
+   IF GRU ≈ RNN → LSTM's specific design crucial
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Run experiments (use run_all_exploration.py)
+2. Open notebook: results/architecture_comparison/rnn_exploration_analysis.ipynb
+3. Run all cells to generate visualizations
+4. Review insights and update main paper if needed
+
+Note: Results saved to experiments/explorations/results/ (gitignored)
+Note: This is exploratory work - not required for main paper submission
+
+================================================================================
