@@ -1,6 +1,9 @@
 """
 Entry point for training the Moore S4 model in an ICL setting.
 """
+import json
+from datetime import datetime
+import torch  # for saving checkpoints
 
 from __future__ import annotations
 
@@ -153,6 +156,13 @@ def main():
     )
 
     trainer.train()
+
+    # Save checkpoints for later graph generation
+    ckpt_dir = Path("checkpoints")
+    ckpt_dir.mkdir(exist_ok=True)
+    ckpt_path = ckpt_dir / f"s4_icl_{args.num_states}states_{args.max_actions}actions.pt"
+    import torch
+    torch.save(trainer.model.state_dict(), ckpt_path)
 
     print("\nEvaluating on training set...")
     train_acc = evaluate_model(trainer.model, trainer.train_loader, trainer.device)
