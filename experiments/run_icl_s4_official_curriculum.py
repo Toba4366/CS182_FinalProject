@@ -126,7 +126,7 @@ def main():
     dataset_cfg = get_dataset_config(args.dataset_type, args.num_samples, args.max_seq_len)
 
     print(
-        f"📊 Sampler config: {dataset_cfg.traj_sampler_config.num_states} states, "
+        f"Sampler config: {dataset_cfg.traj_sampler_config.num_states} states, "
         f"{dataset_cfg.traj_sampler_config.min_actions_per_state}-"
         f"{dataset_cfg.traj_sampler_config.max_actions_per_state} actions"
     )
@@ -165,7 +165,7 @@ def main():
         dataset_cfg.max_seq_len,
     )
 
-    print(f"📊 Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
+    print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
 
     # Model config (official S4)
     model_cfg = S4Config(
@@ -268,9 +268,8 @@ def main():
     final_test_acc = evaluate_model(trainer.model, test_loader, trainer.device)
     print(f"Test Accuracy: {final_test_acc.item():.4f}")
 
-    # --------------------------
+
     # Save lightweight checkpoint
-    # --------------------------
     save_dir = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -278,9 +277,7 @@ def main():
     torch.save(trainer.model.state_dict(), lightweight_path)
     print(f"Model saved to {lightweight_path}")
 
-    # --------------------------
-    # Save full checkpoint + metrics
-    # --------------------------
+    # Save full checkpoint and metrics
     log_dir = Path("checkpoints/training_logs")
     log_dir.mkdir(parents=True, exist_ok=True)
 
