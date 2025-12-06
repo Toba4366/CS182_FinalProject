@@ -102,3 +102,7 @@ sample_fsm.png
 
 # Exploration files - only ignore results, not the scripts
 experiments/explorations/results/
+
+# Ignore specific scripts
+test_new_experiments.sh
+run_small_model_comparison.sh

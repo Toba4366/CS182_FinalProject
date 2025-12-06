@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--d-model", type=int, default=256)
     parser.add_argument("--num-layers", type=int, default=None)
-    parser.add_argument("--max-seq-len", type=int, default=1024)
+    parser.add_argument("--max-seq-len", type=int, default=1600)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--demo-length", type=int, default=80)
     parser.add_argument("--device", type=str, default=None)
