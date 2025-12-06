@@ -72,7 +72,13 @@ dmypy.json
 
 # Experiment results and checkpoints
 results/
+
 checkpoints/
+!checkpoints/*.pt
+!checkpoints/*_metrics.json
+!checkpoints/training_logs/
+!checkpoints/training_logs/*_metrics.json
+
 logs/
 wandb/
 
