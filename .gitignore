@@ -75,7 +75,13 @@ results/*
 !results/architecture_comparison
 results/architecture_comparison/*
 !results/architecture_comparison/*.ipynb
+
 checkpoints/
+!checkpoints/*.pt
+!checkpoints/*_metrics.json
+!checkpoints/training_logs/
+!checkpoints/training_logs/*_metrics.json
+
 logs/
 wandb/
 
