@@ -63,7 +63,17 @@ class FSMGenerator:
 
         self.config = config
         self.rng = random.Random(config.seed)
-        self.action_ids = list(range(MAX_STATES, MAX_STATES + config.max_actions))
+        
+        # Sample n random state IDs from [0, MAX_STATES-1]
+        all_state_ids = list(range(MAX_STATES))
+        self.state_ids = sorted(self.rng.sample(all_state_ids, config.num_states))
+        
+        # Create mapping from random state IDs to contiguous [0, num_states-1] for model
+        self.state_id_to_model_id = {state_id: i for i, state_id in enumerate(self.state_ids)}
+        
+        # Sample n random action IDs from [MAX_STATES, MAX_STATES+MAX_ACTIONS-1]
+        all_action_ids = list(range(MAX_STATES, MAX_STATES + MAX_ACTIONS))
+        self.action_ids = sorted(self.rng.sample(all_action_ids, config.max_actions))
 
     def generate(self) -> FSM:
         """
@@ -86,37 +96,37 @@ class FSMGenerator:
         """
         num_states = self.config.num_states
 
-        # Initialize empty transition dict for each state
-        fsm: FSM = {state: {} for state in range(num_states)}
+        # Initialize empty transition dict for each state using random state IDs
+        fsm: FSM = {state_id: {} for state_id in self.state_ids}
 
         # ------------------------------------------------------------------
         # Step 1: ensure (undirected) connectivity with a random spanning tree
         # ------------------------------------------------------------------
-        remaining_states = list(range(1, num_states))
-        connected_states = [0]
+        remaining_state_ids = self.state_ids[1:]  # All states except the first
+        connected_state_ids = [self.state_ids[0]]  # Start with first state
 
-        while remaining_states:
-            src = self.rng.choice(connected_states)
-            dst = remaining_states.pop(self.rng.randrange(len(remaining_states)))
+        while remaining_state_ids:
+            src_id = self.rng.choice(connected_state_ids)
+            dst_id = remaining_state_ids.pop(self.rng.randrange(len(remaining_state_ids)))
 
             # Use an unused action for src so we don't overwrite an existing edge
-            action_id = self._sample_action_id(fsm[src])
-            fsm[src][action_id] = dst
+            action_id = self._sample_action_id(fsm[src_id])
+            fsm[src_id][action_id] = dst_id
 
             # Optional reverse edge to strengthen connectivity. NO NEED FOR THIS.
-            # reverse_action = self._sample_action_id(fsm[dst])
-            # fsm[dst][reverse_action] = src
+            # reverse_action = self._sample_action_id(fsm[dst_id])
+            # fsm[dst_id][reverse_action] = src_id
 
-            connected_states.append(dst)
+            connected_state_ids.append(dst_id)
 
         # ------------------------------------------------------------------
         # Step 2: fill in missing (state, action) transitions to make a DFA
         # ------------------------------------------------------------------
-        for state in range(num_states):
+        for state_id in self.state_ids:
             for action_id in self.action_ids:
-                if action_id not in fsm[state]:
-                    next_state = self.rng.randrange(num_states)
-                    fsm[state][action_id] = next_state
+                if action_id not in fsm[state_id]:
+                    next_state_id = self.rng.choice(self.state_ids)
+                    fsm[state_id][action_id] = next_state_id
 
         return fsm
 
@@ -133,9 +143,8 @@ class FSMGenerator:
     def generate_with_absorbing_state(self) -> FSM:
         """Generate a DFA with a random absorbing state"""
         fsm = self.generate()  # generate a DFA
-        num_states = self.config.num_states
-        absorbing_state = self.rng.randrange(num_states)  # pick one at random
+        absorbing_state_id = self.rng.choice(self.state_ids)  # pick one at random
         # Overwrite all outgoing transitions from this state to point to itself
         for action_id in self.action_ids:
-            fsm[absorbing_state][action_id] = absorbing_state
+            fsm[absorbing_state_id][action_id] = absorbing_state_id
         return fsm

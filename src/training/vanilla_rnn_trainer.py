@@ -169,7 +169,7 @@ class MooreVanillaRNNTrainer:
             total_loss += loss.item()
             total_steps += 1
 
-            if step % 50 == 0:
+            if step % 10 == 0:
                 print(f"  Step {step}: loss={loss.item():.4f}")
 
         return total_loss / max(1, total_steps)

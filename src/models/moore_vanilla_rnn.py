@@ -37,11 +37,15 @@ class MooreVanillaRNN(nn.Module):
         self.token_embedding = nn.Embedding(config.vocab_size, config.d_model)
         self.dropout = nn.Dropout(config.dropout)
         
-        # RNN layers
-        self.rnn_layers = nn.ModuleList()
-        for i in range(config.num_layers):
-            input_size = config.d_model if i == 0 else config.d_model
-            self.rnn_layers.append(nn.Linear(input_size + config.d_model, config.d_model))
+        # RNN backbone - use PyTorch's optimized nn.RNN instead of manual loop
+        self.rnn = nn.RNN(
+            input_size=config.d_model,
+            hidden_size=config.d_model,
+            num_layers=config.num_layers,
+            dropout=config.dropout if config.num_layers > 1 else 0.0,
+            batch_first=True,  # inputs are (B, T, C)
+            nonlinearity=config.activation,  # 'tanh' or 'relu'
+        )
         
         # Output head for state prediction
         self.head = nn.Linear(config.d_model, config.num_states, bias=False)
@@ -70,48 +74,8 @@ class MooreVanillaRNN(nn.Module):
         x = self.token_embedding(input_ids)  # (B, T, d_model)
         x = self.dropout(x)
         
-        # Initialize hidden state
-        hidden = self._init_hidden(batch_size=B, device=input_ids.device)
-        
-        # Process sequence step by step
-        outputs = []
-        current_hidden = hidden
-        
-        for t in range(T):
-            x_t = x[:, t, :]  # (B, d_model)
-            
-            # Process through RNN layers
-            new_hidden = []
-            layer_input = x_t
-            
-            for layer_idx, rnn_layer in enumerate(self.rnn_layers):
-                h_prev = current_hidden[layer_idx]  # (B, d_model)
-                
-                # Concatenate input and previous hidden state
-                rnn_input = torch.cat([layer_input, h_prev], dim=-1)  # (B, 2*d_model)
-                
-                # Apply linear transformation and activation
-                h_new = rnn_layer(rnn_input)  # (B, d_model)
-                
-                if self.config.activation == "tanh":
-                    h_new = torch.tanh(h_new)
-                elif self.config.activation == "relu":
-                    h_new = F.relu(h_new)
-                else:
-                    raise ValueError(f"Unknown activation: {self.config.activation}")
-                
-                # Apply dropout between layers (not on last layer output)
-                if layer_idx < self.config.num_layers - 1:
-                    h_new = self.dropout(h_new)
-                
-                new_hidden.append(h_new)
-                layer_input = h_new
-            
-            current_hidden = torch.stack(new_hidden)  # (n_layers, B, d_model)
-            outputs.append(layer_input)  # Use final layer output
-        
-        # Stack outputs for all time steps
-        rnn_output = torch.stack(outputs, dim=1)  # (B, T, d_model)
+        # RNN forward pass - uses optimized PyTorch implementation
+        rnn_output, _ = self.rnn(x)  # (B, T, d_model)
         rnn_output = self.dropout(rnn_output)
         
         # Apply output head
@@ -138,14 +102,6 @@ class MooreVanillaRNN(nn.Module):
 
         return logits, loss
 
-    def _init_hidden(self, batch_size: int, device: torch.device):
-        """Create zero-initialized hidden state."""
-        return torch.zeros(
-            self.config.num_layers,
-            batch_size, 
-            self.config.d_model,
-            device=device
-        )
 
     def _init_weights(self, module: nn.Module):
         """Initialize weights following best practices for RNNs."""

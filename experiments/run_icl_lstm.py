@@ -25,6 +25,7 @@ from src.training.lstm_trainer import (
     TrainingConfig,
     evaluate_lstm_model,
 )
+from src.fsm.trajectory_sampler import TrajectorySamplerConfig
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--num-layers", type=int, default=2)
     parser.add_argument("--d-model", type=int, default=256)
-    parser.add_argument("--max-seq-len", type=int, default=512)
+    parser.add_argument("--max-seq-len", type=int, default=4096)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--bidirectional", action="store_true", help="Use bidirectional LSTM")
     parser.add_argument("--device", type=str, default=None)
@@ -45,9 +46,29 @@ def parse_args() -> argparse.Namespace:
 def main():
     args = parse_args()
 
+    # Set random seeds for reproducibility
+    torch.manual_seed(42)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(42)
+
+    # Create trajectory sampler config with explicit min/max actions
+    traj_sampler_config = TrajectorySamplerConfig(
+        num_states=5,
+        min_actions_per_state=5,
+        max_actions_per_state=5,
+        seed=42,
+    )
+
+    # Use same cache path as ablation script to ensure same dataset
+    cache_path = Path("data/icl_dataset_stage_5s_5a_demo90_query100.pt")
+
     dataset_cfg = ICLDatasetConfig(
         num_samples=max(args.num_samples, 10_000),
         max_seq_len=args.max_seq_len,
+        traj_sampler_config=traj_sampler_config,
+        cache_path=cache_path,
+        demo_length=90,
+        query_length=100,
     )
 
     if dataset_cfg.num_samples < 10_000:

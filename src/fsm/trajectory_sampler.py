@@ -39,11 +39,12 @@ class TrajectorySamplerConfig:
     """Configuration for the trajectory sampler."""
 
     num_states: int = 5
-    min_actions_per_state: int = 3
-    max_actions_per_state: int = 8
+    min_actions_per_state: int = 5
+    max_actions_per_state: int = 5
     num_trajectories: int = 3
     trajectory_length: int = 64
     seed: Optional[int] = None
+    use_absorbing_state: bool = False  # If True, generate FSMs with 1 absorbing state
 
     def to_generator_config(self) -> FSMGeneratorConfig:
         """Convert sampler hyperparameters to generator settings."""
@@ -65,11 +66,17 @@ class TrajectorySampler:
         self.config = config
         self.rng = random.Random(config.seed)
         self.generator = FSMGenerator(config.to_generator_config())
-        self.fsm: FSM = self.generator.generate()
+        if config.use_absorbing_state:
+            self.fsm: FSM = self.generator.generate_with_absorbing_state()
+        else:
+            self.fsm: FSM = self.generator.generate()
 
     def regenerate_fsm(self) -> FSM:
         """Create and store a new FSM."""
-        self.fsm = self.generator.generate()
+        if self.config.use_absorbing_state:
+            self.fsm = self.generator.generate_with_absorbing_state()
+        else:
+            self.fsm = self.generator.generate()
         return self.fsm
 
     def get_fsm(self) -> FSM:
