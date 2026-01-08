@@ -1,0 +1,7 @@
+Architecture,Training Method,FSM Complexity,Test Accuracy,Val Accuracy
+LSTM,Direct,Complex (5 states),99.85%,99.85%
+LSTM,Curriculum Stage 1,Simple (3 states),99.68%,99.64%
+LSTM,Curriculum Stage 2,Complex (5 states),98.82%,98.87%
+Vanilla RNN,Direct,Complex (5 states),53.66%,53.25%
+Vanilla RNN,Curriculum Stage 1,Simple (3 states),41.29%,40.71%
+Vanilla RNN,Curriculum Stage 2,Complex (5 states),20.73%,21.02%

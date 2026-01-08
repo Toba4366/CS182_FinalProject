@@ -1,230 +1,665 @@
-# CS 182 Final Project: In-Context Learning of Moore Machines
+# CS 182 Final Project: In-Context Learning of Moore Machines# CS 182 Final Project: In-Context Learning of Moore Machines
 
-**🚧 GITHUB COPILOT SCAFFOLDING - TO BE EDITED AND CHANGED LATER 🚧**
 
-This repository contains the scaffolding for our CS 182 final project on in-context learning of finite state machines using transformer models. This initial framework was generated with GitHub Copilot to provide a solid foundation for team collaboration.
 
-## 🎯 Project Overview
+A comprehensive study of **In-Context Learning (ICL)** capabilities across different neural architectures when learning deterministic finite automata state transitions. This project compares how Transformers, LSTMs, and Vanilla RNNs perform on sequential pattern learning tasks in the context of Moore machines and general DFAs.A comprehensive study of **In-Context Learning (ICL)** capabilities across different neural architectures when learning deterministic finite automata state transitions. This project compares how Transformers, LSTMs, and Vanilla RNNs perform on sequential pattern learning tasks in the context of Moore machines and general DFAs.
 
-We study how transformer models can learn to simulate Moore machines through in-context learning, focusing on:
 
-- **Constrained FSM Parameters**: 5 states, 5-8 actions, 4-8 transitions with self-loops
-- **Small Transformer Models**: Optimized for 2-3 layer experiments
-- **AdamW Optimizer**: Single optimizer focus to reduce experimental scope
-- **Frozen Layer Experiments**: Test whether only the final linear layer can solve ICL
 
-## � Architecture Reorganization Status
+**Team Members:** Trenton O'Bannon, Yuri Lee, Keshab Agarwal, Evan Davis
 
-**🚧 REORGANIZATION IN PROGRESS** - Following the planned architecture from `plan.md`
 
-**Completed:**
-- ✅ Created `models/state_space/` and `models/transformers/` directory structure per plan.md
-- ✅ Extracted common training utilities to `models/state_space/utils/training.py` 
-- ✅ Created cleaned model implementations without embedded utilities:
-  - `models/state_space/vanilla_rnn.py` (176 lines vs 318 original)
-  - `models/state_space/lstm.py` (154 lines vs 279 original)
-- ✅ Extracted tests to proper test files (`tests/test_vanilla_rnn.py`)
-- ✅ Multi-architecture testing works with both old and new structure
 
-**Kept Original Files for Stability:**
-- 🔒 `traditional.py`, `vanilla_rnn.py`, `lstm.py` remain in root directory
-- 🔒 All existing tests and configs continue to work unchanged  
-- 🔒 No breaking changes to current workflow
+## 🎯 Project Overview## 🎯 Project Overview
 
-**Next Steps (Future):**
-- Move `traditional.py` to `models/transformers/traditional.py` 
-- Extract transformer utilities (RoPE, attention, etc.)
-- Update all import statements project-wide
-- Remove original files after full migration validation
 
-## �📁 Repository Structure
 
-```
+### Motivation### Motivation
+
+
+
+**In-Context Learning** is the remarkable ability of neural models to learn new patterns from a few examples provided in their input context, without updating their parameters. While this capability has been extensively studied in large language models (Transformers), little research exists on how different architectures compare on structured sequential learning tasks.**In-Context Learning** is the remarkable ability of neural models to learn new patterns from a few examples provided in their input context, without updating their parameters. While this capability has been extensively studied in large language models (Transformers), little research exists on how different architectures compare on structured sequential learning tasks.
+
+
+
+**Deterministic Finite Automata (DFAs)** provide an ideal testbed because they represent:**Deterministic Finite Automata (DFAs)** provide an ideal testbed because they represent:
+
+- **Deterministic state transitions**: Each state-action pair maps to exactly one next state- **Deterministic state transitions**: Each state-action pair maps to exactly one next state
+
+- **Learnable patterns**: Complex enough for meaningful comparison, simple enough to analyze- **Learnable patterns**: Complex enough for meaningful comparison, simple enough to analyze
+
+- **Mathematical structure**: Well-defined properties for validating model correctness- **Mathematical structure**: Well-defined properties for validating model correctness
+
+- **Scalable complexity**: Configurable number of states and actions for progressive difficulty- **Scalable complexity**: Configurable number of states and actions for progressive difficulty
+
+
+
+### Research Questions
+
+
+
+1. **Architecture Comparison**: How do different neural architectures (Transformer, LSTM, Vanilla RNN) perform on ICL for finite state machines?### Research Questions
+
+2. **Sequence Modeling**: Which architectural inductive biases are most effective for learning finite state machine patterns?
+
+3. **ICL Mechanisms**: What makes certain architectures better at in-context learning for sequential decision tasks?1. **Architecture Comparison**: How do different neural architectures (Transformer, LSTM, Vanilla RNN) perform on ICL for finite state machines?
+
+4. **DFA Properties**: How do different DFA characteristics (absorbing states, connectivity) affect learnability?2. **Sequence Modeling**: Which architectural inductive biases are most effective for learning finite state machine patterns?
+
+3. **ICL Mechanisms**: What makes certain architectures better at in-context learning for sequential decision tasks?
+
+## 🏗️ Project Architecture4. **DFA Properties**: How do different DFA characteristics (absorbing states, connectivity) affect learnability?
+
+
+
+### Core Components## 🏗️ Project Architecture
+
+
+
+```### Core Components
+
 CS182_FinalProject/
-├── traditional.py       # 🤖 Transformer implementation
-├── vanilla_rnn.py      # 🧠 Vanilla RNN implementation  
-├── lstm.py             # � LSTM implementation
-├── fsm_generator.py    # FSM generation utilities
-├── fsm_solver.py       # FSM constraint solver
-├── data/              # 📊 Multi-format datasets (PKL, JSON, Parquet, HDF5)
-│   ├── full_dataset_pkl/     # Pickle format (fast Python loading)
-│   ├── full_dataset_json/    # JSON format (human-readable)
-│   ├── full_dataset_parquet/ # Parquet format (industry standard)
-│   └── full_dataset_hdf5/    # HDF5 format (scientific computing)
-├── src/               # 📦 Core modules
-│   ├── fsm/          # Moore machine implementation
-│   ├── training/     # Training framework
-│   └── utils/        # Utilities
-├── utils/             # Dataset generation & conversion
-│   ├── generate_dataset.py  # Generate datasets in multiple formats
-│   └── convert_dataset.py   # Convert between different formats
-├── tests/               # 🧪 Testing & validation
-│   ├── test_data_integrity.py  # Verify data quality across formats
-│   ├── test_training_pipeline.py  # COMPLETE training pipeline validation
-│   └── test_multi_architecture.py  # Multi-architecture compatibility testing
-├── experiments/         # Experiment runners
-├── configs/             # YAML configuration files
-├── scripts/            # Training automation & testing
-├── notebooks/          # Jupyter notebooks for exploration
-├── papers/             # Research papers and references
-└── requirements.txt    # Python dependencies (updated for all formats)
 
-## 🚀 Quick Start
+├── src/                          # Source code```
 
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+│   ├── models/                   # Neural architecture implementationsCS182_FinalProject/
 
-2. **Test the setup:**
-   ```bash
-   python scripts/test_imports.py    # Test basic imports
-   python scripts/run_quick_training.py  # Run a quick training
-   ```
+│   │   ├── moore_transformer.py  # Transformer with RoPE and causal attention├── src/                          # Source code
+
+│   │   ├── moore_vanilla_rnn.py  # Vanilla RNN with tanh/relu activations│   ├── models/                   # Neural architecture implementations
+
+│   │   └── moore_lstm.py         # LSTM with optional bidirectionality│   │   ├── moore_transformer.py  # Transformer with RoPE and causal attention
+
+│   ├── training/                 # Model-specific trainers│   │   ├── moore_vanilla_rnn.py  # Vanilla RNN with tanh/relu activations
+
+│   │   ├── icl_trainer.py        # Transformer ICL trainer│   │   └── moore_lstm.py         # LSTM with optional bidirectionality
+
+│   │   ├── vanilla_rnn_trainer.py # Vanilla RNN ICL trainer  │   ├── training/                 # Model-specific trainers
+
+│   │   └── lstm_trainer.py       # LSTM ICL trainer│   │   ├── icl_trainer.py        # Transformer ICL trainer
+
+│   ├── datasets/                 # Data generation and loading│   │   ├── vanilla_rnn_trainer.py # Vanilla RNN ICL trainer  
+
+│   │   └── moore_dataset.py      # DFA trajectory dataset for ICL│   │   └── lstm_trainer.py       # LSTM ICL trainer
+
+│   ├── fsm/                      # Finite state machine utilities│   ├── datasets/                 # Data generation and loading
+
+│   │   ├── generator.py          # DFA generation with deterministic transitions│   │   └── moore_dataset.py      # DFA trajectory dataset for ICL
+
+│   │   └── trajectory_sampler.py # FSM trajectory sampling for ICL sequences│   ├── fsm/                      # Finite state machine utilities
+
+│   └── utils/                    # Utility functions│   │   ├── generator.py          # DFA generation with deterministic transitions
+
+├── experiments/                  # Training scripts│   │   └── trajectory_sampler.py # FSM trajectory sampling for ICL sequences
+
+│   ├── run_icl_transformer.py    # Train Transformer model│   └── utils/                    # Utility functions
+
+│   ├── run_icl_vanilla_rnn.py    # Train Vanilla RNN model  ├── experiments/                  # Training scripts
+
+│   └── run_icl_lstm.py           # Train LSTM model│   ├── run_icl_transformer.py    # Train Transformer model
+
+├── tests/                        # Comprehensive test suite│   ├── run_icl_vanilla_rnn.py    # Train Vanilla RNN model  
+
+│   ├── test_moore_models.py      # Model functionality tests│   └── run_icl_lstm.py           # Train LSTM model
+
+│   └── test_icl_trainer.py       # Trainer functionality tests├── tests/                        # Comprehensive test suite
+
+└── data/                         # Generated datasets│   ├── test_moore_models.py      # Model functionality tests
+
+    ├── icl_dataset.pt            # Pre-generated DFA trajectories│   └── test_icl_trainer.py       # Trainer functionality tests
+
+    └── VOCAB.md                  # Vocabulary and tokenization docs└── data/                         # Generated datasets
+
+```    ├── icl_dataset.pt            # Pre-generated DFA trajectories
+
+    └── VOCAB.md                  # Vocabulary and tokenization docs
+
+### Key Design Principles```
+
+
+
+1. **Model-Agnostic ICL Interface**: All models implement the same `forward(input_ids, targets, unknown_mask)` signature for consistent evaluation### Key Design Principles
+
+2. **Individual Trainers**: Each architecture has a dedicated trainer optimized for its specific requirements
+
+3. **Comprehensive Testing**: Full test coverage ensures model correctness and interface consistency  1. **Model-Agnostic ICL Interface**: All models implement the same `forward(input_ids, targets, unknown_mask)` signature for consistent evaluation
+
+4. **DFA Focus**: All components specialized for deterministic finite automata learning tasks2. **Individual Trainers**: Each architecture has a dedicated trainer optimized for its specific requirements
+
+3. **Comprehensive Testing**: Full test coverage ensures model correctness and interface consistency  
+
+## 🧠 Model Architectures4. **DFA Focus**: All components specialized for deterministic finite automata learning tasks
+
+
+
+### 1. Moore Transformer (`moore_transformer.py`)## 🧠 Model Architectures
+
+- **Decoder-only architecture** with causal attention
+
+- **Rotary Position Embedding (RoPE)** for better sequence understanding  ### 1. Moore Transformer (`moore_transformer.py`)
+
+- **Multi-head attention** with configurable heads and layers- **Decoder-only architecture** with causal attention
+
+- **Specialized for ICL** with unknown state masking- **Rotary Position Embedding (RoPE)** for better sequence understanding  
+
+- **Multi-head attention** with configurable heads and layers
+
+### 2. Moore Vanilla RNN (`moore_vanilla_rnn.py`)- **Specialized for ICL** with unknown state masking
+
+- **Elman network** with tanh/relu activations
+
+- **Multi-layer support** with dropout between layers### 2. Moore Vanilla RNN (`moore_vanilla_rnn.py`)
+
+- **Step-by-step processing** maintaining hidden states across timesteps
+
+- **Minimal architecture** serving as baseline for comparison- **Elman network** with tanh/relu activations
+
+
+
+### 3. Moore LSTM (`moore_lstm.py`)- **Multi-layer support** with dropout between layers## 🚀 Quick Start
+
+- **Long Short-Term Memory** with forget/input/output gates
+
+- **Bidirectional support** for enhanced context modeling- **Step-by-step processing** maintaining hidden states across timesteps
+
+- **Proper initialization** with orthogonal hidden-to-hidden weights
+
+- **Gradient-friendly** design for longer sequences- **Minimal architecture** serving as baseline for comparison1. **Install dependencies:**
+
+
+
+## 🔧 DFA Generation   ```bash
+
+
+
+### Deterministic Finite Automata Generator (`src/fsm/generator.py`)### 3. Moore LSTM (`moore_lstm.py`)   pip install -r requirements.txt
+
+
+
+The updated generator creates **true deterministic finite automata** with the following properties:- **Long Short-Term Memory** with forget/input/output gates   ```
+
+
+
+- **Deterministic Transitions**: Every state has exactly `action_count` outgoing transitions- **Bidirectional support** for enhanced context modeling
+
+- **Configurable Complexity**: 
+
+  - `num_states`: Number of states in the automaton (default: 5)- **Proper initialization** with orthogonal hidden-to-hidden weights2. **Test the setup:**
+
+  - `min_actions`/`max_actions`: Range of actions per state (default: 3-8)
+
+  - `action_count`: Computed as `num_states + 2` for proper vocabulary sizing- **Gradient-friendly** design for longer sequences   ```bash
+
+- **Absorbing State Support**: Optional generation of DFAs with absorbing states
+
+- **Connectivity**: Ensures all states are reachable from initial state   python scripts/test_imports.py    # Test basic imports
+
+
+
+### Key Improvements## 📊 In-Context Learning Setup   python scripts/run_quick_training.py  # Run a quick training
+
+
+
+- **Instance-Based Configuration**: Each `FSMGeneratorConfig` computes its own `action_count` via `@property`   ```
+
+- **Data Integrity**: No shared state between different generator configurations  
+
+- **Mathematical Correctness**: Validates DFA properties (exactly `action_count` transitions per state)### Sequence Format
+
+- **Extensibility**: Support for both standard and absorbing state DFAs
 
 3. **View training curves:**
-   ```bash
-   jupyter notebook notebooks/training_analysis.ipynb
-   # Or run in VS Code with Jupyter extension
-   ```
 
-4. **Run experiments:**
-   ```bash
-   # 2-layer transformer (default)
-   python scripts/run_quick_training.py
+## 📊 In-Context Learning Setup
+
+Each training sequence follows the ICL paradigm:   ```bash
+
+### Sequence Format
+
+```   jupyter notebook notebooks/training_analysis.ipynb
+
+Each training sequence follows the ICL paradigm:
+
+```Demo Examples: S₁, A₁ → S₂, A₂ → S₃, ..., <eos>   # Or run in VS Code with Jupyter extension
+
+Demo Examples: S₁, A₁ → S₂, A₂ → S₃, ..., <eos>
+
+Query Segment: S₇, A₇ → <unk>, A₈ → <unk>, A₉ → <unk>Query Segment: S₇, A₇ → <unk>, A₈ → <unk>, A₉ → <unk>   ```
+
+```
+
+```
+
+Where:
+
+- **Demo Examples**: Known state transitions the model learns from4. **Run experiments:**
+
+- **Query Segment**: Unknown states (`<unk>`) the model must predict
+
+- **Loss Masking**: Only unknown positions contribute to lossWhere:   ```bash
+
+
+
+### Vocabulary Structure- **Demo Examples**: Known state transitions the model learns from   # 2-layer transformer (default)
+
+
+
+- **State Tokens**: `0 ... num_states-1`- **Query Segment**: Unknown states (`<unk>`) the model must predict   python scripts/run_quick_training.py
+
+- **Action Tokens**: `num_states ... num_states + action_count - 1`  
+
+- **Special Tokens**:- **Loss Masking**: Only unknown positions contribute to loss   
+
+  - `<eos>`: Separates demo from query segments
+
+  - `<query>`: Marks start of query portion   # Or use the full experiment runner:
+
+  - `<pad>`: Padding for batch processing
+
+### Vocabulary Structure   python -m experiments.run_experiment --config configs/base_config.yaml
+
+### Dataset Generation
+
    
-   # Or use the full experiment runner:
-   python -m experiments.run_experiment --config configs/base_config.yaml
-   
-   # 3-layer comparison
-   python -m experiments.run_experiment --config configs/3layer_config.yaml
-   
-   # Frozen layer experiment (only final layer trains)
-   python -m experiments.run_experiment --config configs/frozen_layers_config.yaml
-   ```
 
-## 🧪 Experimental Configurations
+The `MooreICLDataset` creates sequences by:
 
-### Base Configuration (`configs/base_config.yaml`)
-- 2-layer transformer with 4 attention heads
-- 128 model dimension, optimized for efficiency
-- Standard training with all parameters trainable
+1. **Generating diverse DFAs** with varying complexity using the deterministic generator- **State Tokens**: `0 ... num_states-1`   # 3-layer comparison
 
-### 3-Layer Configuration (`configs/3layer_config.yaml`) 
-- 3-layer transformer for comparison
-- Same hyperparameters for fair comparison
+2. **Sampling demonstration trajectories** showing valid state transitions
 
-### Frozen Layer Configuration (`configs/frozen_layers_config.yaml`)
-- **Tests core hypothesis**: Can only the final linear layer solve ICL?
-- Freezes all transformer layers and embeddings
-- Only the `lm_head` (final linear layer) remains trainable
+3. **Creating query segments** with unknown states to predict- **Action Tokens**: `num_states ... num_states + max_actions - 1`     python -m experiments.run_experiment --config configs/3layer_config.yaml
 
-## 🔬 Key Features
+4. **Applying loss masking** to focus learning on unknowns
 
-### Moore Machine Implementation
-- Exactly 5 states (constraint from project scope)
-- Variable 5-8 actions per machine
-- 4-8 state transitions including self-loops
-- Automatic validation of constraint compliance
+- **Special Tokens**:   
 
-### Multi-Architecture Implementation
-**Transformer (Baseline)**
-- Decoder-only architecture with causal masking
-- Multi-head attention with positional encoding
-- Parameters: ~729k (d=128, 2L)
-- File: `traditional.py`
+## 🚀 Usage
 
-**Vanilla RNN** 
-- Basic Elman network with tanh activation
-- Simple recurrent connections, minimal parameters
-- Parameters: ~75k (d=128, 2L)
-- File: `vanilla_rnn.py`
+  - `<eos>`: Separates demo from query segments   # Frozen layer experiment (only final layer trains)
 
-**LSTM**
-- Long Short-Term Memory with gating mechanisms
-- Enhanced memory and gradient flow
-- Parameters: ~273k (d=128, 2L)
-- File: `lstm.py`
+### Training Models
+
+  - `<query>`: Marks start of query portion   python -m experiments.run_experiment --config configs/frozen_layers_config.yaml
+
+```bash
+
+# Train Transformer (default model)  - `<pad>`: Padding for batch processing   ```
+
+python experiments/run_icl_transformer.py --epochs 10 --batch-size 8 --num-layers 4
+
+
+
+# Train Vanilla RNN with verbose logging
+
+python experiments/run_icl_vanilla_rnn.py --epochs 10 --d-model 256 --activation tanh### Dataset Generation## 🧪 Experimental Configurations
+
+
+
+# Train LSTM with bidirectional processing
+
+python experiments/run_icl_lstm.py --epochs 10 --d-model 256 --bidirectional
+
+The `MooreICLDataset` creates sequences by:### Base Configuration (`configs/base_config.yaml`)
+
+# Disable verbose logging (default is enabled)
+
+python experiments/run_icl_vanilla_rnn.py --no-verbose1. **Generating diverse Moore machines** with varying complexity- 2-layer transformer with 4 attention heads
+
+```
+
+2. **Sampling demonstration trajectories** showing state transitions- 128 model dimension, optimized for efficiency
+
+### Verbose Training Features
+
+3. **Creating query segments** with unknown states to predict- Standard training with all parameters trainable
+
+All RNN and LSTM trainers support detailed logging showing:
+
+- **Input sequence shapes and content**4. **Applying loss masking** to focus learning on unknowns
+
+- **Target states and loss masks**  
+
+- **Unknown position counts**### 3-Layer Configuration (`configs/3layer_config.yaml`) 
+
+- **Loss values and training progress**
+
+## 🚀 Usage- 3-layer transformer for comparison
+
+Example verbose output:
+
+```- Same hyperparameters for fair comparison
+
+🔍 [Epoch 1] Detailed Batch Info:
+
+   Input IDs shape: torch.Size([8, 64])### Training Models
+
+   Input IDs (first sample): tensor([1, 2, 3, 4, 5, 6, 0, 7, 8, ...])
+
+   Target IDs (first sample): tensor([2, 3, 4, 5, 6, 0, 7, 8, 9, ...])### Frozen Layer Configuration (`configs/frozen_layers_config.yaml`)
+
+   Loss mask (first sample): tensor([False, False, ..., True, True])
+
+   Loss: 1.2345```bash- **Tests core hypothesis**: Can only the final linear layer solve ICL?
+
+   Unknown positions: 16 out of 64
+
+```# Train Transformer (default model)- Freezes all transformer layers and embeddings
+
+
+
+### Model Comparisonpython experiments/run_icl_transformer.py --epochs 10 --batch-size 8 --num-layers 4- Only the `lm_head` (final linear layer) remains trainable
+
+
+
+```python
+
+from src.models.moore_transformer import MooreTransformer, TransformerConfig
+
+from src.models.moore_vanilla_rnn import create_moore_vanilla_rnn  # Train Vanilla RNN  ## 🔬 Key Features
+
+from src.models.moore_lstm import create_moore_lstm
+
+python experiments/run_icl_vanilla_rnn.py --epochs 10 --d-model 256 --activation tanh
+
+# Create models with same configuration
+
+config = {"vocab_size": 20, "num_states": 5, "d_model": 256}### Moore Machine Implementation
+
+
+
+transformer = MooreTransformer(TransformerConfig(**config, num_heads=8))# Train LSTM- Exactly 5 states (constraint from project scope)
+
+vanilla_rnn = create_moore_vanilla_rnn(**config)
+
+lstm = create_moore_lstm(**config)python experiments/run_icl_lstm.py --epochs 10 --d-model 256 --bidirectional- Variable 5-8 actions per machine
+
+
+
+# All models support the same interface- 4-8 state transitions including self-loops
+
+logits, loss = model(input_ids, targets=targets, unknown_mask=mask)
+
+```# Disable verbose logging- Automatic validation of constraint compliance
+
+
+
+### Running Testspython experiments/run_icl_vanilla_rnn.py --no-verbose
+
+
+
+```bash```### Multi-Architecture Implementation
+
+# Run all tests
+
+python -m pytest tests/ -v**Transformer (Baseline)**
+
+
+
+# Test specific components### Model Comparison- Decoder-only architecture with causal masking
+
+python -m pytest tests/test_moore_models.py::TestModelComparison -v
+
+python -m pytest tests/test_icl_trainer.py -v- Multi-head attention with positional encoding
+
+```
+
+```python- Parameters: ~729k (d=128, 2L)
+
+## 🔬 Research Insights
+
+from src.models.moore_transformer import MooreTransformer, TransformerConfig- File: `traditional.py`
+
+### Expected Findings
+
+from src.models.moore_vanilla_rnn import create_moore_vanilla_rnn  
+
+1. **Transformer Advantages**: Superior ICL due to attention mechanism's ability to directly relate query positions to relevant demo examples
+
+2. **LSTM vs Vanilla RNN**: LSTM's gating mechanisms should provide better long-range dependency modeling for complex DFAsfrom src.models.moore_lstm import create_moore_lstm**Vanilla RNN** 
+
+3. **Sequence Length Effects**: Longer context windows should benefit Transformers more than recurrent models
+
+4. **Architecture Scaling**: Different optimal model sizes for each architecture- Basic Elman network with tanh activation
+
+5. **DFA Complexity**: Absorbing states and connectivity patterns may create different learning challenges
+
+# Create models with same configuration- Simple recurrent connections, minimal parameters
+
+### Evaluation Metrics
+
+config = {"vocab_size": 20, "num_states": 5, "d_model": 256}- Parameters: ~75k (d=128, 2L)
+
+- **Accuracy**: Percentage of correctly predicted unknown states
+
+- **Loss Convergence**: Training dynamics across architectures- File: `vanilla_rnn.py`
+
+- **Parameter Efficiency**: Performance per parameter count
+
+- **Sequence Length Scaling**: Performance vs context lengthtransformer = MooreTransformer(TransformerConfig(**config, num_heads=8))
+
+- **DFA Property Learning**: Ability to maintain deterministic transition patterns
+
+vanilla_rnn = create_moore_vanilla_rnn(**config)**LSTM**
+
+## 🛠️ Development Features
+
+lstm = create_moore_lstm(**config)- Long Short-Term Memory with gating mechanisms
+
+### Comprehensive Testing
+
+- **25 test cases** covering model creation, training, and interfaces- Enhanced memory and gradient flow
+
+- **Mock datasets** for fast testing without full data generation
+
+- **Interface consistency** tests ensuring all models work interchangeably# All models support the same interface- Parameters: ~273k (d=128, 2L)
+
+
+
+### DFA Validationlogits, loss = model(input_ids, targets=targets, unknown_mask=mask)- File: `lstm.py`
+
+- **Deterministic property checking**: Validates exactly `action_count` transitions per state
+
+- **Connectivity verification**: Ensures all states are reachable```
+
+- **Configuration integrity**: Instance-based properties prevent shared state bugs
 
 **Training Features**
-- Configurable freezing for ablation studies
-- Parameter counting and frozen parameter tracking
-- Unified interface across all architectures
 
-### Training Framework
-- AdamW optimizer with warmup and cosine annealing
-- Gradient clipping and automatic checkpointing
-- Optional Weights & Biases integration
-- Comprehensive evaluation metrics
+### Modular Design
+
+- **Clean separation** between models, trainers, and experiments### Running Tests- Configurable freezing for ablation studies
+
+- **Reusable components** for dataset generation and evaluation
+
+- **Extensible architecture** for adding new model types- Parameter counting and frozen parameter tracking
+
+
+
+## 📈 Future Extensions```bash- Unified interface across all architectures
+
+
+
+1. **State Space Models**: Add Mamba/S4 architectures for comparison# Run all tests
+
+2. **Curriculum Learning**: Progressive difficulty in DFA complexity
+
+3. **Transfer Learning**: Pre-training on simpler DFAs, fine-tuning on complex onespython -m pytest tests/ -v### Training Framework
+
+4. **Attention Analysis**: Visualizing what Transformers attend to during ICL
+
+5. **Scaling Laws**: Model size vs ICL performance relationships- AdamW optimizer with warmup and cosine annealing
+
+6. **DFA Variations**: Non-deterministic automata, epsilon transitions
+
+# Test specific components- Gradient clipping and automatic checkpointing
+
+## 🤝 Contributing
+
+python -m pytest tests/test_moore_models.py::TestModelComparison -v- Optional Weights & Biases integration
+
+This project follows clean coding practices with:
+
+- **Type hints** throughout the codebasepython -m pytest tests/test_icl_trainer.py -v- Comprehensive evaluation metrics
+
+- **Comprehensive documentation** for all modules
+
+- **Consistent interfaces** across components  ```
+
+- **Full test coverage** for reliability
 
 ### Visualization Tools
-- FSM diagram generation with NetworkX
-- Training curve plotting
-- Attention pattern visualization
+
+To extend the project:
+
+1. Add new models in `src/models/` following the Moore interface## 🔬 Research Insights- FSM diagram generation with NetworkX
+
+2. Create corresponding trainers in `src/training/`  
+
+3. Add experiment scripts in `experiments/`- Training curve plotting
+
+4. Include comprehensive tests in `tests/`
+
+### Expected Findings- Attention pattern visualization
+
+## 📚 References
+
 - Performance analysis utilities
 
-## 📊 Planned Experiments
+- **In-Context Learning**: Brown et al. (2020) - Language Models are Few-Shot Learners
 
-1. **Baseline Performance**: 2-layer vs 3-layer transformers
+- **Transformers**: Vaswani et al. (2017) - Attention is All You Need  1. **Transformer Advantages**: Superior ICL due to attention mechanism's ability to directly relate query positions to relevant demo examples
+
+- **RoPE**: Su et al. (2021) - RoFormer: Enhanced Transformer with Rotary Position Embedding
+
+- **Moore Machines**: Moore (1956) - Gedanken-experiments on Sequential Machines2. **LSTM vs Vanilla RNN**: LSTM's gating mechanisms should provide better long-range dependency modeling for complex FSMs  ## 📊 Planned Experiments
+
+- **Finite State Machines**: Hopcroft & Ullman (1979) - Introduction to Automata Theory
+
+3. **Sequence Length Effects**: Longer context windows should benefit Transformers more than recurrent models
+
+---
+
+4. **Architecture Scaling**: Different optimal model sizes for each architecture1. **Baseline Performance**: 2-layer vs 3-layer transformers
+
+This project represents a systematic comparison of neural architectures on structured sequential learning, providing insights into the mechanisms underlying in-context learning across different model families. The updated DFA generator ensures mathematical correctness and proper deterministic automata for reliable experimental results.
 2. **Frozen Layer Analysis**: Test if only final layer can solve ICL
-3. **Scaling Studies**: Model size vs performance trade-offs
-4. **Complexity Analysis**: FSM complexity vs learning difficulty
-5. **Attention Visualization**: What patterns do transformers learn?
 
-## 🛠️ Development Notes
+### Evaluation Metrics3. **Scaling Studies**: Model size vs performance trade-offs
+
+4. **Complexity Analysis**: FSM complexity vs learning difficulty
+
+- **Accuracy**: Percentage of correctly predicted unknown states5. **Attention Visualization**: What patterns do transformers learn?
+
+- **Loss Convergence**: Training dynamics across architectures
+
+- **Parameter Efficiency**: Performance per parameter count## 🛠️ Development Notes
+
+- **Sequence Length Scaling**: Performance vs context length
 
 This scaffolding was generated to provide:
-- ✅ Complete project structure with working imports
+
+## 🛠️ Development Features- ✅ Complete project structure with working imports
+
 - ✅ Constrained FSM generation matching project requirements
-- ✅ Small transformer models (2-3 layers) for efficient experimentation
-- ✅ Frozen parameter experiments for mechanistic analysis
-- ✅ AdamW-only optimization (reduced scope)
-- ✅ Comprehensive configuration system
+
+### Comprehensive Testing- ✅ Small transformer models (2-3 layers) for efficient experimentation
+
+- **25 test cases** covering model creation, training, and interfaces- ✅ Frozen parameter experiments for mechanistic analysis
+
+- **Mock datasets** for fast testing without full data generation- ✅ AdamW-only optimization (reduced scope)
+
+- **Interface consistency** tests ensuring all models work interchangeably- ✅ Comprehensive configuration system
+
 - ✅ Ready-to-run examples and training visualization
-- ✅ Jupyter notebook for training analysis
 
-**Latest Update**: Updated FSM solver to support both tuple and class interfaces, aligned sequence/context lengths with project plan (64 sequences, 256 context), and implemented universal compatibility for multi-architecture development.
+### Verbose Training- ✅ Jupyter notebook for training analysis
 
-## 📊 Complete 10,000 Sample Dataset Generated
+All trainers support detailed logging showing:
+
+- Input sequence shapes and content**Latest Update**: Updated FSM solver to support both tuple and class interfaces, aligned sequence/context lengths with project plan (64 sequences, 256 context), and implemented universal compatibility for multi-architecture development.
+
+- Target states and loss masks  
+
+- Unknown position counts## 📊 Complete 10,000 Sample Dataset Generated
+
+- Loss values and training progress
 
 **✨ NEW: Multi-Format Dataset System**
 
-We've generated a complete 10,000 sample dataset as specified in `plan.md`, available in 4 different formats to suit different workflows:
+### Modular Design
 
-### 📁 Available Dataset Formats
+- **Clean separation** between models, trainers, and experimentsWe've generated a complete 10,000 sample dataset as specified in `plan.md`, available in 4 different formats to suit different workflows:
 
-| Format | Size | Best For | Location |
+- **Reusable components** for dataset generation and evaluation
+
+- **Extensible architecture** for adding new model types### 📁 Available Dataset Formats
+
+
+
+## 📈 Future Extensions| Format | Size | Best For | Location |
+
 |--------|------|----------|----------|
-| **PKL** | ~19MB | 🏃 Fastest Python training | `data/full_dataset_pkl/` |
-| **JSON** | ~144MB | 👁️ Human inspection & debugging | `data/full_dataset_json/` |
-| **Parquet** | ~6.8MB | 🏢 Production & data analysis | `data/full_dataset_parquet/` |
-| **HDF5** | ~16MB | 🔬 Scientific computing | `data/full_dataset_hdf5/` |
+
+1. **State Space Models**: Add Mamba/S4 architectures for comparison| **PKL** | ~19MB | 🏃 Fastest Python training | `data/full_dataset_pkl/` |
+
+2. **Curriculum Learning**: Progressive difficulty in Moore machine complexity| **JSON** | ~144MB | 👁️ Human inspection & debugging | `data/full_dataset_json/` |
+
+3. **Transfer Learning**: Pre-training on simpler FSMs, fine-tuning on complex ones| **Parquet** | ~6.8MB | 🏢 Production & data analysis | `data/full_dataset_parquet/` |
+
+4. **Attention Analysis**: Visualizing what Transformers attend to during ICL| **HDF5** | ~16MB | 🔬 Scientific computing | `data/full_dataset_hdf5/` |
+
+5. **Scaling Laws**: Model size vs ICL performance relationships
 
 ### 📈 Dataset Statistics
-- **Training**: 6,000 samples  
+
+## 🤝 Contributing- **Training**: 6,000 samples  
+
 - **Validation**: 2,000 samples
-- **Test**: 2,000 samples
-- **Total**: 10,000 samples (matching plan.md specifications)
-- **Truncation Distribution**: ~25% start_state, ~50% action, ~25% non_start_state
 
-### 🚀 Quick Dataset Usage
+This project follows clean coding practices with:- **Test**: 2,000 samples
 
-**Choose your preferred format:**
+- **Type hints** throughout the codebase- **Total**: 10,000 samples (matching plan.md specifications)
 
-```python
-# Option A: Fastest training (PKL)
-from tests.test_data_integrity import FSMDataset_PKL
+- **Comprehensive documentation** for all modules- **Truncation Distribution**: ~25% start_state, ~50% action, ~25% non_start_state
+
+- **Consistent interfaces** across components  
+
+- **Full test coverage** for reliability### 🚀 Quick Dataset Usage
+
+
+
+To extend the project:**Choose your preferred format:**
+
+1. Add new models in `src/models/` following the Moore interface
+
+2. Create corresponding trainers in `src/training/`  ```python
+
+3. Add experiment scripts in `experiments/`# Option A: Fastest training (PKL)
+
+4. Include comprehensive tests in `tests/`from tests.test_data_integrity import FSMDataset_PKL
+
 dataset = FSMDataset_PKL('./data/full_dataset_pkl', 'train')
 
+## 📚 References
+
 # Option B: Most readable (JSON) 
-from tests.test_data_integrity import FSMDataset_JSON
-dataset = FSMDataset_JSON('./data/full_dataset_json', 'train')
 
-# Option C: Production ready (Parquet)
+- **In-Context Learning**: Brown et al. (2020) - Language Models are Few-Shot Learnersfrom tests.test_data_integrity import FSMDataset_JSON
+
+- **Transformers**: Vaswani et al. (2017) - Attention is All You Need  dataset = FSMDataset_JSON('./data/full_dataset_json', 'train')
+
+- **RoPE**: Su et al. (2021) - RoFormer: Enhanced Transformer with Rotary Position Embedding
+
+- **Moore Machines**: Moore (1956) - Gedanken-experiments on Sequential Machines# Option C: Production ready (Parquet)
+
 from tests.test_data_integrity import FSMDataset_Parquet  
-dataset = FSMDataset_Parquet('./data/full_dataset_parquet', 'train')
 
-# Option D: Scientific computing (HDF5)
+---dataset = FSMDataset_Parquet('./data/full_dataset_parquet', 'train')
+
+
+
+This project represents a systematic comparison of neural architectures on structured sequential learning, providing insights into the mechanisms underlying in-context learning across different model families.# Option D: Scientific computing (HDF5)
 from tests.test_data_integrity import FSMDataset_HDF5
 dataset = FSMDataset_HDF5('./data/full_dataset_hdf5', 'train')
 ```

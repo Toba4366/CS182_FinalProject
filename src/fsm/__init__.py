@@ -1,16 +1,10 @@
 """
-Finite State Machine (FSM) module for in-context learning experiments.
+Finite State Machine (FSM) utilities.
 
-This module contains implementations of Moore machines and related utilities
-for generating training data and evaluating model performance on ICL tasks.
+This module provides FSM generation and trajectory sampling functionality.
 """
 
-from .moore_machine import MooreMachine, MooreMachineGenerator
-from .fsm_utils import generate_random_sequence, validate_fsm_constraints
+# Fixed vocabulary constants for the Moore machine ICL task
+MAX_STATES = 8
+MAX_ACTIONS = 10
 
-__all__ = [
-    "MooreMachine",
-    "MooreMachineGenerator", 
-    "generate_random_sequence",
-    "validate_fsm_constraints"
-]

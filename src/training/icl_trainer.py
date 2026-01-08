@@ -1,0 +1,191 @@
+"""
+Training utilities for the Moore machine ICL transformer.
+
+NOTE: To make this trainer model-agnostic in the future:
+1. Change the import from specific model to `import torch.nn as nn`
+2. Replace `MooreTransformer` type hints with `nn.Module`
+3. Ensure all models follow the same forward signature:
+   forward(input_ids, targets=None, unknown_mask=None) -> (logits, loss)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, Optional
+
+try:
+    import torch  # type: ignore
+    from torch.utils.data import DataLoader, Dataset  # type: ignore
+except ImportError as exc:  # pragma: no cover
+    raise ImportError("ICL trainer requires PyTorch. Install via `pip install torch`.") from exc
+
+from src.models.moore_transformer import MooreTransformer
+
+
+class ICLDataCollator:
+    """Pads variable-length sequences in a batch."""
+
+    def __init__(self, pad_token_id: int):
+        self.pad_token_id = pad_token_id
+
+    def __call__(self, batch):
+        batch_size = len(batch)
+        max_len = max(item["input_ids"].size(0) for item in batch)
+
+        input_ids = torch.full(
+            (batch_size, max_len), self.pad_token_id, dtype=torch.long
+        )
+        target_ids = torch.full(
+            (batch_size, max_len), self.pad_token_id, dtype=torch.long
+        )
+        loss_mask = torch.zeros((batch_size, max_len), dtype=torch.bool)
+        attention_mask = torch.zeros((batch_size, max_len), dtype=torch.bool)
+
+        for idx, item in enumerate(batch):
+            seq_len = item["input_ids"].size(0)
+            input_ids[idx, :seq_len] = item["input_ids"]
+            target_ids[idx, :seq_len] = item["target_ids"]
+            loss_mask[idx, :seq_len] = item["loss_mask"]
+            attention_mask[idx, :seq_len] = True
+
+        return {
+            "input_ids": input_ids,
+            "target_ids": target_ids,
+            "loss_mask": loss_mask,
+            "attention_mask": attention_mask,
+        }
+
+
+@dataclass
+class TrainingConfig:
+    batch_size: int = 8
+    learning_rate: float = 1e-3
+    weight_decay: float = 0.0
+    num_epochs: int = 3
+    device: Optional[str] = None
+
+
+class MooreICLTrainer:
+    """Thin training loop wrapper for the transformer."""
+
+    def __init__(
+        self,
+        model: MooreTransformer,
+        train_dataset: Dataset,
+        val_dataset: Dataset,
+        collator: ICLDataCollator,
+        config: TrainingConfig,
+    ):
+        self.config = config
+        self.device = (
+            torch.device(config.device)
+            if config.device
+            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
+        self.model = model.to(self.device)
+        self.collator = collator
+
+        self.train_loader = DataLoader(
+            train_dataset,
+            batch_size=config.batch_size,
+            shuffle=True,
+            collate_fn=collator,
+        )
+        self.val_loader = DataLoader(
+            val_dataset,
+            batch_size=config.batch_size,
+            shuffle=False,
+            collate_fn=collator,
+        )
+
+        self.optimizer = torch.optim.AdamW(
+            self.model.parameters(),
+            lr=config.learning_rate,
+            weight_decay=config.weight_decay,
+        )
+
+    def train(self):
+        for epoch in range(1, self.config.num_epochs + 1):
+            train_loss = self._run_epoch(epoch)
+            val_loss = self.evaluate()
+            print(
+                f"[Epoch {epoch}] Train Loss: {train_loss:.4f} | "
+                f"Val Loss: {val_loss:.4f}"
+            )
+
+    def _run_epoch(self, epoch: int) -> float:
+        self.model.train()
+        total_loss = 0.0
+        total_steps = 0
+
+        for step, batch in enumerate(self.train_loader, 1):
+            batch = self._move_to_device(batch)
+            _, loss = self.model(
+                batch["input_ids"],
+                targets=batch["target_ids"],
+                unknown_mask=batch["loss_mask"],
+            )
+
+            if loss is None:
+                continue
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+            self.optimizer.step()
+
+            total_loss += loss.item()
+            total_steps += 1
+
+            if step % 10 == 0:
+                print(f"  Step {step}: loss={loss.item():.4f}")
+
+        return total_loss / max(1, total_steps)
+
+    @torch.no_grad()
+    def evaluate(self) -> float:
+        self.model.eval()
+        total_loss = 0.0
+        total_steps = 0
+
+        for batch in self.val_loader:
+            batch = self._move_to_device(batch)
+            _, loss = self.model(
+                batch["input_ids"],
+                targets=batch["target_ids"],
+                unknown_mask=batch["loss_mask"],
+            )
+            if loss is None:
+                continue
+            total_loss += loss.item()
+            total_steps += 1
+
+        return total_loss / max(1, total_steps)
+
+    def _move_to_device(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        return {k: v.to(self.device) for k, v in batch.items()}
+
+
+@torch.no_grad()
+def evaluate_model(
+    model: MooreTransformer,
+    dataloader: DataLoader,
+    device: torch.device,
+) -> torch.Tensor:
+    model.eval()
+    total_correct = torch.tensor(0, device=device)
+    total_tokens = torch.tensor(0, device=device)
+
+    for batch in dataloader:
+        batch = {k: v.to(device) for k, v in batch.items()}
+        logits, _ = model(batch["input_ids"])
+        predictions = logits.argmax(dim=-1)
+
+        mask = batch["loss_mask"]
+        targets = batch["target_ids"]
+
+        total_correct += ((predictions == targets) & mask).sum()
+        total_tokens += mask.sum()
+
+    return (total_correct.float() / total_tokens.float()).cpu()
+
