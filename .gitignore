@@ -90,3 +90,6 @@ Thumbs.db
 *.pdf
 sample_fsm.png
 !papers/*.pdf
+
+# Research code sample
+CODING_SAMPLE.md
